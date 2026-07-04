@@ -12,22 +12,30 @@ The runtime only loads `../chase.glb`. Everything here is source material for ex
 
 ## Current Generator
 
-This folder also contains a script-generated first-pass asset builder:
+This folder now contains two build paths:
 
 ```text
+build_chase_blender.py
 build_chase_glb.py
 ```
 
-Run it from the repo root with:
+## Preferred Path
+
+Use Blender first:
 
 ```powershell
-python assets/models/source/build_chase_glb.py
+& 'C:\Program Files\Blender Foundation\Blender 5.1\blender.exe' --background --python assets/models/source/build_chase_blender.py
 ```
 
 That writes:
 
 ```text
 assets/models/chase.glb
+assets/models/source/chase_prototype.blend
 ```
 
-Use it as a temporary bridge until a true Blender-modeled Chase replaces it.
+`build_chase_blender.py` is the real source path now.
+
+## Legacy Bridge
+
+`build_chase_glb.py` is the older non-Blender bridge generator. Keep it only as fallback.

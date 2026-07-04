@@ -1,23 +1,23 @@
 {
-  "displayName": "Prototype Chase GLB",
-  "position": [
-    0,
-    0,
-    20
-  ],
+  "scale": 1,
   "rotationDegrees": [
     0,
     180,
     0
   ],
-  "scale": 1,
-  "targetHeight": 3.1,
-  "alignFeetToGround": true,
+  "displayName": "Blender Chase Prototype",
   "boundsNode": "",
+  "alignFeetToGround": true,
+  "targetHeight": 3.1,
   "material": {
     "roughnessMin": 0.15,
     "metalnessMax": 0.45,
-    "castShadow": false,
-    "receiveShadow": false
-  }
+    "receiveShadow": false,
+    "castShadow": false
+  },
+  "position": [
+    0,
+    0,
+    20
+  ]
 }

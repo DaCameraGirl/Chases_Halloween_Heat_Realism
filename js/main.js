@@ -44,7 +44,7 @@ const input = {
   sprint: false,
   dragging: false,
   yaw: Math.PI * 0.08,
-  pitch: -0.12,
+  pitch: -0.34,
   lastX: 0,
   lastY: 0
 };
@@ -129,9 +129,9 @@ function updateMarkers(dt) {
 }
 
 function updateCamera(dt) {
-  const radius = state.reviewMode ? 9.6 : 11.5;
-  const verticalBase = state.reviewMode ? 2.85 : 5.2;
-  const verticalSwing = state.reviewMode ? 0.85 : 1.6;
+  const radius = state.reviewMode ? 11.2 : 11.5;
+  const verticalBase = state.reviewMode ? 0.7 : 5.2;
+  const verticalSwing = state.reviewMode ? 0.65 : 1.6;
   const vertical = verticalBase + Math.sin(input.pitch) * verticalSwing;
   const offset = new THREE.Vector3(
     Math.sin(input.yaw) * radius,
@@ -140,7 +140,7 @@ function updateCamera(dt) {
   );
   const ideal = chase.group.position.clone().add(offset);
   camera.position.lerp(ideal, 1 - Math.exp(-5.5 * dt));
-  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, state.reviewMode ? 2.1 : 1.8, 0));
+  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, state.reviewMode ? 0.05 : 1.8, 0));
   camera.lookAt(lookTarget);
 }
 
