@@ -26,7 +26,7 @@ const hud = {
   staminaBar: document.getElementById("staminaBar")
 };
 
-hud.modelState.textContent = chase.isFallback ? "Fallback" : "GLB Model";
+hud.modelState.textContent = chase.isFallback ? "Starter Rig" : "Custom Model";
 
 const state = {
   objectiveIndex: 0,
@@ -40,15 +40,15 @@ const input = {
   strafe: 0,
   sprint: false,
   dragging: false,
-  yaw: Math.PI,
-  pitch: -0.22,
+  yaw: Math.PI * 0.96,
+  pitch: -0.18,
   lastX: 0,
   lastY: 0
 };
 
 const clock = new THREE.Clock();
 const move = new THREE.Vector3();
-const spawn = new THREE.Vector3(0, 0, 20);
+const spawn = new THREE.Vector3(0, 0, 24);
 const lookTarget = new THREE.Vector3();
 
 function currentObjective() {
@@ -58,7 +58,7 @@ function currentObjective() {
 function refreshHUD() {
   const objective = currentObjective();
   hud.objectiveTitle.textContent = `Reach ${objective.name}`;
-  hud.objectiveHint.textContent = "This realism branch is ready for a full Chase model. Right now you are testing scale, movement, lighting, and whether the neighborhood reads more like a grounded game world.";
+  hud.objectiveHint.textContent = "Move through the route, read the mood of the neighborhood, and shape this branch into the more realistic version of Chase's Halloween run.";
   hud.markerState.textContent = objective.name;
   hud.healthBar.style.width = `${state.health}%`;
   hud.fearBar.style.width = `${state.fear}%`;
@@ -121,8 +121,8 @@ function updateMarkers(dt) {
 }
 
 function updateCamera(dt) {
-  const radius = 7.6;
-  const vertical = 3.7 + Math.sin(input.pitch) * 1.4;
+  const radius = 11.5;
+  const vertical = 5.2 + Math.sin(input.pitch) * 1.6;
   const offset = new THREE.Vector3(
     Math.sin(input.yaw) * radius,
     vertical,
@@ -130,7 +130,7 @@ function updateCamera(dt) {
   );
   const ideal = chase.group.position.clone().add(offset);
   camera.position.lerp(ideal, 1 - Math.exp(-5.5 * dt));
-  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, 2.1, 0));
+  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, 1.8, 0));
   camera.lookAt(lookTarget);
 }
 

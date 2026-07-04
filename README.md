@@ -1,66 +1,100 @@
-# Chase's Halloween Heat: Realism Build
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=220&color=0:060912,50:11243d,100:335f8d&text=Chase's%20Halloween%20Heat&fontColor=f6efe8&fontAlignY=38&desc=Realism-First%20Companion%20Branch&descAlignY=58&descColor=96f5e5" alt="Chase's Halloween Heat realism banner" />
+</p>
 
-This repo is the realism-first companion to the cartoon parody game in `Chases_Parody_GTA_Haunt`.
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Azeret+Mono&weight=700&size=18&pause=1200&color=96F5E5&center=true&vCenter=true&width=980&lines=Same+Halloween+mission.;More+grounded+lighting.;Cleaner+3D+pipeline.;Built+to+grow+toward+a+real+Chase+likeness." alt="Animated tagline" />
+</p>
 
-The goal here is different:
+<p align="center">
+  <a href="https://dacameragirl.github.io/Chases_Halloween_Heat_Realism/"><img src="https://img.shields.io/badge/Open-Realism%20Build-5A93D7?style=for-the-badge&logo=githubpages&logoColor=fff" alt="Live site" /></a>
+  <a href="https://github.com/DaCameraGirl/Chases_Halloween_Heat_Realism"><img src="https://img.shields.io/badge/View-Repository-141A2A?style=for-the-badge&logo=github&logoColor=fff" alt="Repository" /></a>
+  <img src="https://img.shields.io/badge/Three.js-Modular%20Scene-0B111E?style=for-the-badge&logo=threedotjs&logoColor=fff" alt="Three.js modular scene" />
+  <img src="https://img.shields.io/badge/Character-Ready%20for%20Custom%203D%20Model-233C63?style=for-the-badge" alt="Ready for custom 3D model" />
+</p>
 
-- keep the same Halloween chase premise
-- preserve browser playability on GitHub Pages
-- move the art pipeline toward a character that can actually resemble Chase
-- prepare the project for real 3D assets instead of a single-file low-poly sketch
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=rect&color=0:0c1120,100:0c1120&height=4&section=header" alt="" />
+</p>
 
-## What this version is for
+## Why This Repo Exists
 
-This repo is meant to become the higher-end branch:
+This is the realism-first companion to the parody build. It keeps the same Halloween chase premise, but the code and asset structure are meant for a more grounded visual direction.
 
-- more realistic lighting
-- more grounded environment materials
-- a dedicated `chase.glb` character slot
-- cleaner modular code
-- easier upgrade path for Blender / Mixamo / custom textures
+## What This Branch Is For
 
-The current version already includes:
+- More realistic lighting and scene framing
+- A cleaner modular browser game structure
+- A place to grow a better-looking Chase without breaking the parody branch
+- A home for the future custom 3D Chase character
 
-- third-person playable prototype
-- realistic-ish browser renderer and lighting
-- modular Three.js code
-- fallback placeholder character if no real model is present
-- mission route markers inspired by the parody build
+## Current State
 
-## Repo layout
+- Third-person browser prototype
+- Realism branch HUD and mission route
+- Starter stand-in character
+- Environment and camera set up for a more grounded look
+- A clean place to swap in a true Chase model later
 
-- `index.html` boots the realism prototype
-- `css/styles.css` handles HUD and overlay styling
-- `js/main.js` wires the scene, controls, HUD, and loop
-- `js/world.js` creates the environment and mission markers
-- `js/character.js` loads `assets/models/chase.glb` if present and falls back to a procedural placeholder
-- `assets/models/` is where the realistic Chase model should go
-- `docs/PIPELINE.md` explains how to move from photo refs to a real likeness
+## Plain-English Model Note
 
-## Local preview
+Right now the game uses a temporary stand-in character.
 
-From this folder:
+Later, this branch can be upgraded with a real custom 3D Chase model. The code is already organized so that when that model exists, it can replace the stand-in without rewriting the whole project.
+
+## Repo Layout
+
+- `index.html` boots the realism build
+- `css/styles.css` styles the HUD and overlay
+- `js/main.js` runs movement, camera, HUD, and the game loop
+- `js/world.js` builds the neighborhood and objective markers
+- `js/character.js` handles the current stand-in character and future model loading
+- `docs/PIPELINE.md` explains the realism upgrade path
+
+## Language Bar
+
+```text
+JavaScript  [#############-------]  52%
+HTML        [########------------]  30%
+CSS         [#######-------------]  18%
+```
+
+## Controls
+
+- `WASD` move
+- `Shift` sprint
+- `Right drag` orbit camera
+- `R` reset Chase to spawn
+
+## Run Local
 
 ```powershell
 py -3.11 -m http.server 8022
 ```
 
-Then open:
+Open:
 
 ```text
 http://127.0.0.1:8022/
 ```
 
-## GitHub Pages
-
-This repo is set up for static GitHub Pages hosting via `.github/workflows/static.yml`.
-
-When it is published under a repo named `Chases_Halloween_Heat_Realism`, the expected URL is:
+## Live URL
 
 ```text
 https://dacameragirl.github.io/Chases_Halloween_Heat_Realism/
 ```
 
-## Current limitation
+## Reality Check
 
-Without a real model file, the browser build still uses a stylized fallback body. The difference from the parody repo is that this repo is structured to replace that fallback with an actual character asset once you are ready.
+This branch is the right place to aim for a more believable Chase, but it still needs a real custom character asset before it can get anywhere near GTA-style likeness. The parody repo is for speed and style. This repo is for the long game.
+
+## Next Upgrade Path
+
+1. Improve the starter stand-in
+2. Build or import a custom Chase model
+3. Tune materials, curls, face proportions, and hoodie shape from photo references
+4. Push this branch toward the more realistic version of the game
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=120&section=footer&color=0:060912,50:11243d,100:335f8d" alt="Footer" />
+</p>
