@@ -119,9 +119,14 @@ function applyMovement(dt) {
 
 function updateMarkers(dt) {
   const objective = currentObjective();
+  const reviewHidden = state.reviewMode;
   world.markers.forEach((marker, index) => {
     const active = marker === objective;
-    marker.group.visible = index >= state.objectiveIndex;
+    marker.group.visible = !reviewHidden && index >= state.objectiveIndex;
+    if (reviewHidden) {
+      marker.group.position.y = 0;
+      return;
+    }
     marker.beam.material.opacity = active ? 0.28 : 0.1;
     marker.disc.rotation.z += dt * (active ? 1.6 : 0.5);
     marker.group.position.y = active ? Math.sin(clock.elapsedTime * 2.4) * 0.15 : 0;
