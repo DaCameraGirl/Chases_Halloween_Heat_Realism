@@ -1,0 +1,195 @@
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { createWorld, missionRoute } from "./world.js";
+import { createChaseCharacter } from "./character.js";
+
+const canvas = document.getElementById("scene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.32;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
+
+const world = createWorld(scene);
+const chase = await createChaseCharacter(scene);
+
+const hud = {
+  objectiveTitle: document.getElementById("objectiveTitle"),
+  objectiveHint: document.getElementById("objectiveHint"),
+  modelState: document.getElementById("modelState"),
+  markerState: document.getElementById("markerState"),
+  healthBar: document.getElementById("healthBar"),
+  fearBar: document.getElementById("fearBar"),
+  staminaBar: document.getElementById("staminaBar")
+};
+
+hud.modelState.textContent = chase.isFallback ? "Fallback" : "GLB Model";
+
+const state = {
+  objectiveIndex: 0,
+  health: 100,
+  fear: 8,
+  stamina: 100
+};
+
+const input = {
+  forward: 0,
+  strafe: 0,
+  sprint: false,
+  dragging: false,
+  yaw: Math.PI,
+  pitch: -0.22,
+  lastX: 0,
+  lastY: 0
+};
+
+const clock = new THREE.Clock();
+const move = new THREE.Vector3();
+const spawn = new THREE.Vector3(0, 0, 20);
+const lookTarget = new THREE.Vector3();
+
+function currentObjective() {
+  return missionRoute[state.objectiveIndex];
+}
+
+function refreshHUD() {
+  const objective = currentObjective();
+  hud.objectiveTitle.textContent = `Reach ${objective.name}`;
+  hud.objectiveHint.textContent = "This realism branch is ready for a full Chase model. Right now you are testing scale, movement, lighting, and whether the neighborhood reads more like a grounded game world.";
+  hud.markerState.textContent = objective.name;
+  hud.healthBar.style.width = `${state.health}%`;
+  hud.fearBar.style.width = `${state.fear}%`;
+  hud.staminaBar.style.width = `${state.stamina}%`;
+}
+
+function resetChase() {
+  chase.group.position.copy(spawn);
+  state.objectiveIndex = 0;
+  state.health = 100;
+  state.fear = 8;
+  state.stamina = 100;
+  refreshHUD();
+}
+
+function applyMovement(dt) {
+  const basisForward = new THREE.Vector3(Math.sin(input.yaw), 0, Math.cos(input.yaw)).normalize();
+  const basisRight = new THREE.Vector3(basisForward.z, 0, -basisForward.x).normalize();
+  move.set(0, 0, 0);
+  move.addScaledVector(basisForward, input.forward);
+  move.addScaledVector(basisRight, input.strafe);
+
+  const moving = move.lengthSq() > 0.0001;
+  if (moving) {
+    move.normalize();
+    const sprinting = input.sprint && state.stamina > 0;
+    const speed = sprinting ? 8.5 : 4.8;
+    chase.group.position.addScaledVector(move, speed * dt);
+    chase.group.rotation.y = Math.atan2(move.x, move.z);
+    if (sprinting) {
+      state.stamina = Math.max(0, state.stamina - dt * 16);
+      state.fear = Math.min(100, state.fear + dt * 2.8);
+    } else {
+      state.stamina = Math.min(100, state.stamina + dt * 10);
+      state.fear = Math.max(0, state.fear - dt * 1.25);
+    }
+  } else {
+    state.stamina = Math.min(100, state.stamina + dt * 14);
+    state.fear = Math.max(0, state.fear - dt * 1.6);
+  }
+
+  chase.group.position.x = THREE.MathUtils.clamp(chase.group.position.x, -40, 40);
+  chase.group.position.z = THREE.MathUtils.clamp(chase.group.position.z, -40, 40);
+
+  const objective = currentObjective();
+  if (objective && chase.group.position.distanceTo(objective.position) < 2.8) {
+    state.objectiveIndex = Math.min(missionRoute.length - 1, state.objectiveIndex + 1);
+  }
+}
+
+function updateMarkers(dt) {
+  const objective = currentObjective();
+  world.markers.forEach((marker, index) => {
+    const active = marker === objective;
+    marker.group.visible = index >= state.objectiveIndex;
+    marker.beam.material.opacity = active ? 0.28 : 0.1;
+    marker.disc.rotation.z += dt * (active ? 1.6 : 0.5);
+    marker.group.position.y = active ? Math.sin(clock.elapsedTime * 2.4) * 0.15 : 0;
+  });
+}
+
+function updateCamera(dt) {
+  const radius = 7.6;
+  const vertical = 3.7 + Math.sin(input.pitch) * 1.4;
+  const offset = new THREE.Vector3(
+    Math.sin(input.yaw) * radius,
+    vertical,
+    Math.cos(input.yaw) * radius
+  );
+  const ideal = chase.group.position.clone().add(offset);
+  camera.position.lerp(ideal, 1 - Math.exp(-5.5 * dt));
+  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, 2.1, 0));
+  camera.lookAt(lookTarget);
+}
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.033);
+  applyMovement(dt);
+  updateMarkers(dt);
+  updateCamera(dt);
+  refreshHUD();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.code === "KeyW") input.forward = 1;
+  if (event.code === "KeyS") input.forward = -1;
+  if (event.code === "KeyA") input.strafe = -1;
+  if (event.code === "KeyD") input.strafe = 1;
+  if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
+  if (event.code === "KeyR") resetChase();
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.code === "KeyW" && input.forward > 0) input.forward = 0;
+  if (event.code === "KeyS" && input.forward < 0) input.forward = 0;
+  if (event.code === "KeyA" && input.strafe < 0) input.strafe = 0;
+  if (event.code === "KeyD" && input.strafe > 0) input.strafe = 0;
+  if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = false;
+});
+
+canvas.addEventListener("pointerdown", (event) => {
+  if (event.button !== 2) return;
+  input.dragging = true;
+  input.lastX = event.clientX;
+  input.lastY = event.clientY;
+});
+
+window.addEventListener("pointermove", (event) => {
+  if (!input.dragging) return;
+  const dx = event.clientX - input.lastX;
+  const dy = event.clientY - input.lastY;
+  input.lastX = event.clientX;
+  input.lastY = event.clientY;
+  input.yaw -= dx * 0.006;
+  input.pitch = THREE.MathUtils.clamp(input.pitch - dy * 0.004, -0.65, 0.45);
+});
+
+window.addEventListener("pointerup", () => {
+  input.dragging = false;
+});
+
+canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
+resetChase();
+updateCamera(0.016);
+tick();

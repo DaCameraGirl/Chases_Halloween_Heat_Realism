@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chase's Halloween Heat: Realism Build</title>
+  <meta name="description" content="Realism-first prototype for Chase's Halloween Heat.">
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="hud">
+    <section class="panel brand">
+      <span class="eyebrow">Realism Branch</span>
+      <h1>Halloween Heat</h1>
+      <p>Same mission. Different art pipeline. This branch exists to push Chase toward a more believable 3D likeness.</p>
+    </section>
+
+    <section class="panel objective">
+      <span class="eyebrow">Current Objective</span>
+      <h2 id="objectiveTitle">Reach Costume Crypt</h2>
+      <p id="objectiveHint">Follow the marker route and test how the realism scene reads before we replace the fallback character with a full Chase model.</p>
+    </section>
+
+    <section class="panel status">
+      <span class="eyebrow">Status</span>
+      <div class="stat">
+        <label>Health</label>
+        <div class="bar"><span id="healthBar"></span></div>
+      </div>
+      <div class="stat">
+        <label>Fear</label>
+        <div class="bar fear"><span id="fearBar"></span></div>
+      </div>
+      <div class="stat">
+        <label>Stamina</label>
+        <div class="bar stamina"><span id="staminaBar"></span></div>
+      </div>
+      <dl class="stats-grid">
+        <div><dt>Model</dt><dd id="modelState">Fallback</dd></div>
+        <div><dt>Marker</dt><dd id="markerState">Costume Crypt</dd></div>
+        <div><dt>View</dt><dd>Third Person</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel notes">
+      <span class="eyebrow">Controls</span>
+      <ul>
+        <li><code>WASD</code> move</li>
+        <li><code>Shift</code> sprint</li>
+        <li><code>Right drag</code> orbit camera</li>
+        <li><code>R</code> reset Chase to spawn</li>
+      </ul>
+    </section>
+
+    <section class="panel pipeline">
+      <span class="eyebrow">Asset Slot</span>
+      <p>Drop a realistic `chase.glb` into <code>assets/models/</code> and this build will try to load it automatically.</p>
+    </section>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
