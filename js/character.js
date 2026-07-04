@@ -116,6 +116,10 @@ function createFallbackChase() {
     color: 0xc79772,
     roughness: 0.95
   });
+  const warmSkinMat = new THREE.MeshStandardMaterial({
+    color: 0xd0a180,
+    roughness: 0.94
+  });
   const hairMat = new THREE.MeshStandardMaterial({
     color: 0x473229,
     roughness: 0.98
@@ -220,23 +224,30 @@ function createFallbackChase() {
     new THREE.SphereGeometry(0.35, 24, 24),
     skinMat
   );
-  head.scale.set(0.84, 1.08, 0.88);
-  head.position.set(0, 2.62, 0.01);
+  head.scale.set(0.83, 1.1, 0.9);
+  head.position.set(0, 2.62, 0.005);
   group.add(head);
 
+  const facePlane = new THREE.Mesh(
+    new THREE.BoxGeometry(0.27, 0.34, 0.11),
+    warmSkinMat
+  );
+  facePlane.position.set(0, 2.56, 0.18);
+  group.add(facePlane);
+
   const jaw = new THREE.Mesh(
-    new THREE.BoxGeometry(0.24, 0.14, 0.17),
+    new THREE.BoxGeometry(0.22, 0.14, 0.17),
     skinMat
   );
-  jaw.position.set(0, 2.37, 0.09);
-  jaw.rotation.x = -0.18;
+  jaw.position.set(0, 2.37, 0.095);
+  jaw.rotation.x = -0.2;
   group.add(jaw);
 
   const chin = new THREE.Mesh(
-    new THREE.BoxGeometry(0.12, 0.065, 0.09),
+    new THREE.BoxGeometry(0.115, 0.07, 0.1),
     skinMat
   );
-  chin.position.set(0, 2.305, 0.105);
+  chin.position.set(0, 2.305, 0.115);
   chin.rotation.x = -0.25;
   group.add(chin);
 
@@ -244,13 +255,25 @@ function createFallbackChase() {
     new THREE.SphereGeometry(0.09, 14, 14),
     skinMat
   );
-  leftCheek.scale.set(1.2, 0.8, 0.82);
-  leftCheek.position.set(-0.16, 2.51, 0.13);
+  leftCheek.scale.set(1.12, 0.76, 0.7);
+  leftCheek.position.set(-0.145, 2.5, 0.15);
   group.add(leftCheek);
 
   const rightCheek = leftCheek.clone();
   rightCheek.position.x = 0.16;
   group.add(rightCheek);
+
+  const leftCheekbone = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 12, 12),
+    warmSkinMat
+  );
+  leftCheekbone.scale.set(1.2, 0.68, 0.8);
+  leftCheekbone.position.set(-0.145, 2.57, 0.19);
+  group.add(leftCheekbone);
+
+  const rightCheekbone = leftCheekbone.clone();
+  rightCheekbone.position.x = 0.145;
+  group.add(rightCheekbone);
 
   const leftEar = new THREE.Mesh(
     new THREE.SphereGeometry(0.05, 12, 12),
@@ -298,7 +321,7 @@ function createFallbackChase() {
     new THREE.BoxGeometry(0.1, 0.018, 0.028),
     browMat
   );
-  leftBrow.position.set(-0.088, 2.665, 0.21);
+  leftBrow.position.set(-0.088, 2.67, 0.222);
   leftBrow.rotation.z = -0.13;
   group.add(leftBrow);
 
@@ -307,67 +330,182 @@ function createFallbackChase() {
   rightBrow.rotation.z = 0.13;
   group.add(rightBrow);
 
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1412 });
-  const leftEye = new THREE.Mesh(
-    new THREE.SphereGeometry(0.028, 10, 10),
-    eyeMat
+  const browBridge = new THREE.Mesh(
+    new THREE.BoxGeometry(0.13, 0.028, 0.05),
+    skinMat
   );
-  leftEye.scale.set(1.25, 0.68, 0.7);
-  leftEye.position.set(-0.09, 2.585, 0.246);
+  browBridge.position.set(0, 2.655, 0.202);
+  group.add(browBridge);
+
+  const eyeSocketMat = new THREE.MeshStandardMaterial({ color: 0x845f4f, roughness: 1 });
+  const leftEyeSocket = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 12, 12),
+    eyeSocketMat
+  );
+  leftEyeSocket.scale.set(1.12, 0.75, 0.5);
+  leftEyeSocket.position.set(-0.09, 2.575, 0.205);
+  group.add(leftEyeSocket);
+
+  const rightEyeSocket = leftEyeSocket.clone();
+  rightEyeSocket.position.x = 0.09;
+  group.add(rightEyeSocket);
+
+  const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xe9dfd3, roughness: 0.7 });
+  const leftEye = new THREE.Mesh(
+    new THREE.SphereGeometry(0.032, 12, 12),
+    eyeWhiteMat
+  );
+  leftEye.scale.set(1.22, 0.82, 0.84);
+  leftEye.position.set(-0.09, 2.582, 0.235);
   group.add(leftEye);
 
   const rightEye = leftEye.clone();
   rightEye.position.x = 0.09;
   group.add(rightEye);
 
-  const noseBridge = new THREE.Mesh(
-    new THREE.BoxGeometry(0.046, 0.115, 0.048),
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x181210 });
+  const leftPupil = new THREE.Mesh(
+    new THREE.SphereGeometry(0.015, 10, 10),
+    pupilMat
+  );
+  leftPupil.scale.set(0.9, 1.1, 0.55);
+  leftPupil.position.set(-0.09, 2.58, 0.259);
+  group.add(leftPupil);
+
+  const rightPupil = leftPupil.clone();
+  rightPupil.position.x = 0.09;
+  group.add(rightPupil);
+
+  const leftUpperLid = new THREE.Mesh(
+    new THREE.BoxGeometry(0.066, 0.02, 0.03),
+    warmSkinMat
+  );
+  leftUpperLid.position.set(-0.09, 2.603, 0.241);
+  leftUpperLid.rotation.z = -0.05;
+  group.add(leftUpperLid);
+
+  const rightUpperLid = leftUpperLid.clone();
+  rightUpperLid.position.x = 0.09;
+  rightUpperLid.rotation.z = 0.05;
+  group.add(rightUpperLid);
+
+  const leftLowerLid = new THREE.Mesh(
+    new THREE.BoxGeometry(0.062, 0.012, 0.02),
     skinMat
   );
-  noseBridge.position.set(0, 2.545, 0.214);
+  leftLowerLid.position.set(-0.09, 2.552, 0.236);
+  group.add(leftLowerLid);
+
+  const rightLowerLid = leftLowerLid.clone();
+  rightLowerLid.position.x = 0.09;
+  group.add(rightLowerLid);
+
+  const noseBridge = new THREE.Mesh(
+    new THREE.BoxGeometry(0.05, 0.13, 0.05),
+    skinMat
+  );
+  noseBridge.position.set(0, 2.54, 0.222);
   group.add(noseBridge);
 
   const noseTip = new THREE.Mesh(
-    new THREE.BoxGeometry(0.085, 0.05, 0.068),
-    skinMat
+    new THREE.BoxGeometry(0.078, 0.052, 0.07),
+    warmSkinMat
   );
-  noseTip.position.set(0, 2.48, 0.244);
+  noseTip.position.set(0, 2.47, 0.253);
   noseTip.rotation.x = -0.08;
   group.add(noseTip);
+
+  const leftNoseWing = new THREE.Mesh(
+    new THREE.SphereGeometry(0.03, 10, 10),
+    warmSkinMat
+  );
+  leftNoseWing.scale.set(0.9, 0.72, 0.9);
+  leftNoseWing.position.set(-0.038, 2.47, 0.242);
+  group.add(leftNoseWing);
+
+  const rightNoseWing = leftNoseWing.clone();
+  rightNoseWing.position.x = 0.038;
+  group.add(rightNoseWing);
+
+  const leftNostril = new THREE.Mesh(
+    new THREE.SphereGeometry(0.01, 8, 8),
+    pupilMat
+  );
+  leftNostril.scale.set(1.1, 0.7, 1.2);
+  leftNostril.position.set(-0.022, 2.447, 0.266);
+  group.add(leftNostril);
+
+  const rightNostril = leftNostril.clone();
+  rightNostril.position.x = 0.022;
+  group.add(rightNostril);
 
   const philtrum = new THREE.Mesh(
     new THREE.BoxGeometry(0.036, 0.04, 0.022),
     skinMat
   );
-  philtrum.position.set(0, 2.43, 0.226);
+  philtrum.position.set(0, 2.42, 0.236);
   group.add(philtrum);
 
-  const upperLip = new THREE.Mesh(
-    new THREE.BoxGeometry(0.118, 0.016, 0.026),
-    new THREE.MeshStandardMaterial({ color: 0x7d5143, roughness: 0.9 })
+  const upperLipMat = new THREE.MeshStandardMaterial({ color: 0x87594a, roughness: 0.9 });
+  const lowerLipMat = new THREE.MeshStandardMaterial({ color: 0xa56f5e, roughness: 0.88 });
+
+  const upperLipLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(0.055, 0.016, 0.028),
+    upperLipMat
   );
-  upperLip.position.set(0, 2.395, 0.232);
-  group.add(upperLip);
+  upperLipLeft.position.set(-0.03, 2.392, 0.245);
+  upperLipLeft.rotation.z = -0.1;
+  group.add(upperLipLeft);
+
+  const upperLipRight = upperLipLeft.clone();
+  upperLipRight.position.x = 0.03;
+  upperLipRight.rotation.z = 0.1;
+  group.add(upperLipRight);
+
+  const cupidBow = new THREE.Mesh(
+    new THREE.BoxGeometry(0.024, 0.013, 0.026),
+    upperLipMat
+  );
+  cupidBow.position.set(0, 2.398, 0.246);
+  group.add(cupidBow);
 
   const lowerLip = new THREE.Mesh(
-    new THREE.BoxGeometry(0.102, 0.022, 0.03),
-    new THREE.MeshStandardMaterial({ color: 0x9d6656, roughness: 0.88 })
+    new THREE.BoxGeometry(0.092, 0.024, 0.034),
+    lowerLipMat
   );
-  lowerLip.position.set(0, 2.367, 0.226);
+  lowerLip.position.set(0, 2.364, 0.24);
   group.add(lowerLip);
 
+  const mouthLine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.09, 0.008, 0.014),
+    pupilMat
+  );
+  mouthLine.position.set(0, 2.383, 0.255);
+  group.add(mouthLine);
+
+  const leftMouthCorner = new THREE.Mesh(
+    new THREE.SphereGeometry(0.01, 8, 8),
+    upperLipMat
+  );
+  leftMouthCorner.position.set(-0.048, 2.382, 0.247);
+  group.add(leftMouthCorner);
+
+  const rightMouthCorner = leftMouthCorner.clone();
+  rightMouthCorner.position.x = 0.048;
+  group.add(rightMouthCorner);
+
   const mustache = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 0.014, 0.018),
+    new THREE.BoxGeometry(0.08, 0.012, 0.016),
     facialHairMat
   );
-  mustache.position.set(0, 2.417, 0.236);
+  mustache.position.set(0, 2.413, 0.252);
   group.add(mustache);
 
   const soulPatch = new THREE.Mesh(
     new THREE.BoxGeometry(0.034, 0.028, 0.018),
     facialHairMat
   );
-  soulPatch.position.set(0, 2.332, 0.17);
+  soulPatch.position.set(0, 2.332, 0.188);
   group.add(soulPatch);
 
   const leftLeg = new THREE.Mesh(

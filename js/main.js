@@ -38,10 +38,11 @@ const state = {
 const input = {
   forward: 0,
   strafe: 0,
+  turn: 0,
   sprint: false,
   dragging: false,
-  yaw: Math.PI * 0.96,
-  pitch: -0.18,
+  yaw: Math.PI * 0.08,
+  pitch: -0.12,
   lastX: 0,
   lastY: 0
 };
@@ -58,7 +59,7 @@ function currentObjective() {
 function refreshHUD() {
   const objective = currentObjective();
   hud.objectiveTitle.textContent = `Reach ${objective.name}`;
-  hud.objectiveHint.textContent = "Move through the route, read the mood of the neighborhood, and shape this branch into the more realistic version of Chase's Halloween run.";
+  hud.objectiveHint.textContent = "Use this build to lock in Chase's face, curls, hoodie silhouette, and proportions first. The gameplay shell can be tuned after the character reads right.";
   hud.markerState.textContent = objective.name;
   hud.healthBar.style.width = `${state.health}%`;
   hud.fearBar.style.width = `${state.fear}%`;
@@ -67,6 +68,7 @@ function refreshHUD() {
 
 function resetChase() {
   chase.group.position.copy(spawn);
+  chase.group.rotation.y = Math.PI;
   state.objectiveIndex = 0;
   state.health = 100;
   state.fear = 8;
@@ -96,6 +98,9 @@ function applyMovement(dt) {
       state.fear = Math.max(0, state.fear - dt * 1.25);
     }
   } else {
+    if (input.turn !== 0) {
+      chase.group.rotation.y += input.turn * dt * 1.9;
+    }
     state.stamina = Math.min(100, state.stamina + dt * 14);
     state.fear = Math.max(0, state.fear - dt * 1.6);
   }
@@ -155,6 +160,8 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyS") input.forward = -1;
   if (event.code === "KeyA") input.strafe = -1;
   if (event.code === "KeyD") input.strafe = 1;
+  if (event.code === "KeyQ") input.turn = 1;
+  if (event.code === "KeyE") input.turn = -1;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
   if (event.code === "KeyR") resetChase();
 });
@@ -164,11 +171,13 @@ window.addEventListener("keyup", (event) => {
   if (event.code === "KeyS" && input.forward < 0) input.forward = 0;
   if (event.code === "KeyA" && input.strafe < 0) input.strafe = 0;
   if (event.code === "KeyD" && input.strafe > 0) input.strafe = 0;
+  if (event.code === "KeyQ" && input.turn > 0) input.turn = 0;
+  if (event.code === "KeyE" && input.turn < 0) input.turn = 0;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = false;
 });
 
 canvas.addEventListener("pointerdown", (event) => {
-  if (event.button !== 2) return;
+  if (event.button !== 0 && event.button !== 2) return;
   input.dragging = true;
   input.lastX = event.clientX;
   input.lastY = event.clientY;
