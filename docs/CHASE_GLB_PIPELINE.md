@@ -38,6 +38,12 @@ Use the photo refs in:
 C:\Users\enter\OneDrive\Desktop\chase_pictures
 ```
 
+The repo also now includes a curated subset in:
+
+```text
+assets/models/reference/
+```
+
 Focus first on the high-value likeness traits visible across those photos:
 
 - tall, rounded curls with volume above the crown
@@ -55,6 +61,12 @@ Start with:
 - hair mass and silhouette
 - hoodie silhouette
 - neck/shoulder proportions
+
+For the concrete likeness checklist, use:
+
+```text
+docs/CHASE_HEAD_MODEL_BRIEF.md
+```
 
 Do not burn time on tiny skin detail before the silhouette reads correctly from gameplay distance.
 

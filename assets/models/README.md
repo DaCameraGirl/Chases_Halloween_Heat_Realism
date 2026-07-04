@@ -12,6 +12,12 @@ The loader also reads:
 chase.config.json
 ```
 
+Modeling refs live here too:
+
+```text
+reference/
+```
+
 That config lets the game correct common Blender export problems without code edits:
 
 - model too small or too large
@@ -71,3 +77,9 @@ assets/models/source/
 ```
 
 That keeps the runtime asset separate from the working scene file.
+
+For the first real head pass, use the curated notes in:
+
+```text
+../../docs/CHASE_HEAD_MODEL_BRIEF.md
+```
