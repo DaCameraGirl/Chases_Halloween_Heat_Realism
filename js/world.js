@@ -1,4 +1,4 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "three";
 
 export const missionRoute = [
   { name: "Costume Crypt", position: new THREE.Vector3(-16, 0, -10), color: 0xff88db },
