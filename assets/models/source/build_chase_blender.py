@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GLB_PATH = ROOT / "chase.glb"
 BLEND_PATH = ROOT / "source" / "chase_prototype.blend"
 CONFIG_PATH = ROOT / "chase.config.json"
+FACE_TEXTURE_PATH = ROOT / "source" / "face_texture.png"
 
 # Authored in Y-up "game space": x = left/right, y = height (0 = feet), z = depth (+ = front/face).
 JOINTS = {
@@ -263,6 +264,10 @@ def build_hair(materials, hair_center):
 
 
 def build_face(materials, head_center):
+    """Flat-colored fallback facial features (nose/brows/eyes/mouth/ears) for
+    builds with no projected photo texture. Not used once add_face_projection
+    has painted the face — those flat bumps would double up on top of the
+    photo's own nose/eyes/mouth."""
     parts = []
     front = head_center[2] + HEAD_SCALE[2]
 
@@ -298,6 +303,11 @@ def build_face(materials, head_center):
     )
     parts.append(mouth)
 
+    parts.extend(build_ears(materials, head_center))
+    return parts
+
+
+def build_ears(materials, head_center):
     ear_l = add_uv_sphere(
         "EarLeft", (head_center[0] - HEAD_SCALE[0] * 0.97, head_center[1], head_center[2]),
         (0.016, 0.03, 0.022), materials["skin"], segments=14, rings=10, subsurf=1,
@@ -306,9 +316,7 @@ def build_face(materials, head_center):
         "EarRight", (head_center[0] + HEAD_SCALE[0] * 0.97, head_center[1], head_center[2]),
         (0.016, 0.03, 0.022), materials["skin"], segments=14, rings=10, subsurf=1,
     )
-    parts.extend([ear_l, ear_r])
-
-    return parts
+    return [ear_l, ear_r]
 
 
 def build_hood(materials):
@@ -345,6 +353,85 @@ def build_shoes(materials):
     return parts
 
 
+def add_face_projection(head_obj, image_path):
+    """Project a cropped reference photo onto the head via an orthographic
+    camera + UV Project modifier, then bake the UVs so they survive glTF
+    export. Replaces the head's flat skin material with the photo."""
+    if not image_path.exists():
+        print(f"WARNING: face texture not found at {image_path}, skipping projection")
+        return
+
+    img = bpy.data.images.load(str(image_path))
+    w, h = img.size
+
+    # Match render resolution to the crop's aspect ratio so the projection
+    # isn't stretched (the UV Project modifier maps through the camera's
+    # frustum at the scene's render aspect ratio).
+    scene = bpy.context.scene
+    scene.render.resolution_x = w
+    scene.render.resolution_y = h
+
+    cam_data = bpy.data.cameras.new("FaceProjectCam")
+    cam_data.type = "ORTHO"
+    # Frame roughly the eye-to-chin span of the sculpted head, with margin
+    # for forehead/hair/ears at the crop's edges.
+    cam_data.ortho_scale = HEAD_SCALE[1] * 1.9
+    cam_obj = bpy.data.objects.new("FaceProjectCam", cam_data)
+    # front = +z; camera sits further out on +z looking back toward -z.
+    cam_obj.location = (HEAD_CENTER[0], HEAD_CENTER[1], HEAD_CENTER[2] + HEAD_SCALE[2] * 4.0)
+    cam_obj.rotation_euler = (0.0, 0.0, 0.0)
+    bpy.context.scene.collection.objects.link(cam_obj)
+
+    uv_layer = head_obj.data.uv_layers.new(name="FaceUV")
+    head_obj.data.uv_layers.active = uv_layer
+
+    mod = head_obj.modifiers.new(name="FaceProject", type="UV_PROJECT")
+    mod.uv_layer = "FaceUV"
+    mod.projector_count = 1
+    mod.projectors[0].object = cam_obj
+
+    bpy.context.view_layer.objects.active = head_obj
+    head_obj.select_set(True)
+    bpy.ops.object.modifier_apply(modifier="FaceProject")
+    head_obj.select_set(False)
+    bpy.data.objects.remove(cam_obj, do_unlink=True)
+
+    face_mat = bpy.data.materials.new(name="FacePhoto")
+    face_mat.use_nodes = True
+    nodes = face_mat.node_tree.nodes
+    links = face_mat.node_tree.links
+    bsdf = nodes["Principled BSDF"]
+    tex_node = nodes.new("ShaderNodeTexImage")
+    tex_node.image = img
+    uv_node = nodes.new("ShaderNodeUVMap")
+    uv_node.uv_map = "FaceUV"
+    links.new(uv_node.outputs["UV"], tex_node.inputs["Vector"])
+    links.new(tex_node.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.85
+
+    # Only the front-facing "face patch" gets the photo — everywhere else
+    # (sides, back, top under the hair) keeps the flat skin material at
+    # index 0. Outside the camera's ortho frustum the projected UVs wrap
+    # and repeat the image edge, which looks like a hard sticker seam with
+    # color bleed if applied to the whole head.
+    face_mat_index = len(head_obj.data.materials)
+    head_obj.data.materials.append(face_mat)
+
+    # Face centers here are in the Head object's LOCAL space (roughly
+    # -HEAD_SCALE..+HEAD_SCALE per axis, centered on the object origin) —
+    # NOT world space, so this must NOT include the HEAD_CENTER world offset.
+    front_z_local = HEAD_SCALE[2] * 0.4
+    bpy.ops.object.mode_set(mode="EDIT")
+    bm = bmesh.from_edit_mesh(head_obj.data)
+    bm.faces.ensure_lookup_table()
+    for face in bm.faces:
+        center = face.calc_center_median()
+        if center.z > front_z_local:
+            face.material_index = face_mat_index
+    bmesh.update_edit_mesh(head_obj.data)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
 def join_objects(name, objects):
     bpy.ops.object.select_all(action="DESELECT")
     for obj in objects:
@@ -379,9 +466,10 @@ def build_model():
 
     head = add_uv_sphere("Head", HEAD_CENTER, HEAD_SCALE, materials["skin"], segments=40, rings=26, subsurf=2)
     sculpt_head(head)
+    add_face_projection(head, FACE_TEXTURE_PATH)
     body.append(head)
 
-    body.extend(build_face(materials, HEAD_CENTER))
+    body.extend(build_ears(materials, HEAD_CENTER))
     hair_center = (HEAD_CENTER[0], HEAD_CENTER[1] + HEAD_SCALE[1] * 0.55, HEAD_CENTER[2])
     body.extend(build_hair(materials, hair_center))
     body.extend(build_hood(materials))

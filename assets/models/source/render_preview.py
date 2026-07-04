@@ -62,21 +62,28 @@ def main():
     cam_obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.camera = cam_obj
 
-    # Three-point lighting (key/fill on the camera's +Y front side, rim behind)
+    # Three-point lighting (key/fill on the camera's +Y front side, rim behind).
+    # Light positions scale with cam_dist, so light *distance* shrinks for
+    # close-up (head-only) framing — without compensation that means much
+    # brighter falloff (inverse-square) and a blown-out close-up. Normalize
+    # energy against the reference distance-to-height ratio (1.4, tuned for
+    # the full-body shot) so both framings read at similar exposure.
+    light_scale = (cam_dist / (height * 1.4)) ** 2
+
     key = bpy.data.lights.new("Key", type="AREA")
-    key.energy = 800
+    key.energy = 800 * light_scale
     key_obj = bpy.data.objects.new("Key", key)
     key_obj.location = (target.x - cam_dist * 0.6, target.y + cam_dist, target.z + height * 0.4)
     bpy.context.scene.collection.objects.link(key_obj)
 
     fill = bpy.data.lights.new("Fill", type="AREA")
-    fill.energy = 300
+    fill.energy = 300 * light_scale
     fill_obj = bpy.data.objects.new("Fill", fill)
     fill_obj.location = (target.x + cam_dist * 0.8, target.y + cam_dist * 0.6, target.z + height * 0.2)
     bpy.context.scene.collection.objects.link(fill_obj)
 
     rim = bpy.data.lights.new("Rim", type="AREA")
-    rim.energy = 400
+    rim.energy = 400 * light_scale
     rim_obj = bpy.data.objects.new("Rim", rim)
     rim_obj.location = (target.x, target.y - cam_dist * 0.8, target.z + height * 0.6)
     bpy.context.scene.collection.objects.link(rim_obj)
