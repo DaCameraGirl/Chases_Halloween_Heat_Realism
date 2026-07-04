@@ -26,7 +26,7 @@ const hud = {
   staminaBar: document.getElementById("staminaBar")
 };
 
-hud.modelState.textContent = chase.isFallback ? "Starter Rig" : "Custom Model";
+hud.modelState.textContent = chase.modelLabel ?? (chase.isFallback ? "Starter Rig" : "Custom Model");
 
 const state = {
   objectiveIndex: 0,

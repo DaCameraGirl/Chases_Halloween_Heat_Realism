@@ -1,0 +1,15 @@
+{
+  "displayName": "Chase GLB",
+  "position": [0, 0, 20],
+  "rotationDegrees": [0, 180, 0],
+  "scale": 1,
+  "targetHeight": 3.1,
+  "alignFeetToGround": true,
+  "boundsNode": "",
+  "material": {
+    "roughnessMin": 0.15,
+    "metalnessMax": 0.45,
+    "castShadow": false,
+    "receiveShadow": false
+  }
+}

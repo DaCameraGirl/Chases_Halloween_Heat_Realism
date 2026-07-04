@@ -58,6 +58,8 @@ Later, this branch can be upgraded with a real custom 3D Chase model. The code i
 - `js/world.js` builds the neighborhood and objective markers
 - `js/character.js` handles the current stand-in character and future model loading
 - `docs/PIPELINE.md` explains the realism upgrade path
+- `docs/CHASE_GLB_PIPELINE.md` covers the real `chase.glb` workflow
+- `assets/models/chase.config.json` lets you tune model import scale/origin/rotation without editing code
 
 ## Language Bar
 

@@ -1,23 +1,95 @@
 import * as THREE from "three";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
-function setMaterialsPhysical(root) {
+const MODEL_ASSET_PATH = "./assets/models/chase.glb";
+const MODEL_CONFIG_PATH = "./assets/models/chase.config.json";
+
+const defaultModelConfig = {
+  displayName: "Chase GLB",
+  position: [0, 0, 20],
+  rotationDegrees: [0, 180, 0],
+  scale: 1,
+  targetHeight: 3.1,
+  alignFeetToGround: true,
+  boundsNode: "",
+  material: {
+    roughnessMin: 0.15,
+    metalnessMax: 0.45,
+    castShadow: false,
+    receiveShadow: false
+  }
+};
+
+function setMaterialsPhysical(root, materialConfig = defaultModelConfig.material) {
   root.traverse((obj) => {
     if (!obj.isMesh) return;
-    obj.castShadow = false;
-    obj.receiveShadow = false;
+    obj.castShadow = materialConfig.castShadow;
+    obj.receiveShadow = materialConfig.receiveShadow;
     const material = obj.material;
     if (!material) return;
     if (Array.isArray(material)) {
       material.forEach((m) => {
-        if ("roughness" in m) m.roughness = Math.min(1, Math.max(0.15, m.roughness ?? 0.7));
-        if ("metalness" in m) m.metalness = Math.min(0.45, m.metalness ?? 0.02);
+        if ("roughness" in m) m.roughness = Math.min(1, Math.max(materialConfig.roughnessMin, m.roughness ?? 0.7));
+        if ("metalness" in m) m.metalness = Math.min(materialConfig.metalnessMax, m.metalness ?? 0.02);
       });
     } else {
-      if ("roughness" in material) material.roughness = Math.min(1, Math.max(0.15, material.roughness ?? 0.7));
-      if ("metalness" in material) material.metalness = Math.min(0.45, material.metalness ?? 0.02);
+      if ("roughness" in material) material.roughness = Math.min(1, Math.max(materialConfig.roughnessMin, material.roughness ?? 0.7));
+      if ("metalness" in material) material.metalness = Math.min(materialConfig.metalnessMax, material.metalness ?? 0.02);
     }
   });
+}
+
+async function loadModelConfig() {
+  try {
+    const response = await fetch(MODEL_CONFIG_PATH, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Config fetch failed with ${response.status}`);
+    const config = await response.json();
+    return {
+      ...defaultModelConfig,
+      ...config,
+      material: {
+        ...defaultModelConfig.material,
+        ...(config.material ?? {})
+      }
+    };
+  } catch {
+    return defaultModelConfig;
+  }
+}
+
+function degreesToRadians([x = 0, y = 0, z = 0] = []) {
+  return [x, y, z].map((value) => THREE.MathUtils.degToRad(value));
+}
+
+function getBoundsNode(root, config) {
+  if (!config.boundsNode) return root;
+  return root.getObjectByName(config.boundsNode) ?? root;
+}
+
+function normalizeLoadedCharacter(root, config) {
+  const [rotationX, rotationY, rotationZ] = degreesToRadians(config.rotationDegrees);
+  const [positionX, positionY, positionZ] = config.position ?? defaultModelConfig.position;
+  const boundsNode = getBoundsNode(root, config);
+  const size = new THREE.Vector3();
+  const box = new THREE.Box3();
+
+  root.position.set(0, 0, 0);
+  root.rotation.set(rotationX, rotationY, rotationZ);
+  root.scale.setScalar(config.scale ?? 1);
+
+  // Normalize arbitrary Blender export scale to the gameplay rig height.
+  box.setFromObject(boundsNode);
+  box.getSize(size);
+  if (config.targetHeight > 0 && size.y > 0.0001) {
+    root.scale.multiplyScalar(config.targetHeight / size.y);
+  }
+
+  if (config.alignFeetToGround) {
+    box.setFromObject(boundsNode);
+    root.position.y -= box.min.y;
+  }
+
+  root.position.add(new THREE.Vector3(positionX, positionY, positionZ));
 }
 
 function createFallbackChase() {
@@ -351,21 +423,27 @@ function createFallbackChase() {
 
 export async function createChaseCharacter(scene) {
   const loader = new GLTFLoader();
-  const assetPath = "./assets/models/chase.glb";
+  const modelConfig = await loadModelConfig();
 
   try {
-    const gltf = await loader.loadAsync(assetPath);
+    const gltf = await loader.loadAsync(MODEL_ASSET_PATH);
     const root = gltf.scene;
-    root.position.set(0, 0, 20);
-    root.rotation.y = Math.PI;
-    root.scale.setScalar(1.85);
-    setMaterialsPhysical(root);
+    normalizeLoadedCharacter(root, modelConfig);
+    setMaterialsPhysical(root, modelConfig.material);
     scene.add(root);
-    return { group: root, isFallback: false };
+    return {
+      group: root,
+      isFallback: false,
+      modelLabel: modelConfig.displayName,
+      assetPath: MODEL_ASSET_PATH
+    };
   } catch {
     const fallback = createFallbackChase();
     fallback.group.position.set(0, 0, 20);
     scene.add(fallback.group);
-    return fallback;
+    return {
+      ...fallback,
+      modelLabel: "Starter Rig"
+    };
   }
 }
