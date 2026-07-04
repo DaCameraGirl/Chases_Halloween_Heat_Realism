@@ -28,8 +28,16 @@ def vec_length(v):
 def vec_normalize(v):
     length = vec_length(v)
     if length < 1e-8:
-      return (0.0, 1.0, 0.0)
+        return (0.0, 1.0, 0.0)
     return (v[0] / length, v[1] / length, v[2] / length)
+
+
+def vec_cross(a, b):
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
 
 
 def rotate_xyz(v, rotation):
@@ -69,6 +77,15 @@ def add_quad(mesh, a, b, c, d, normal):
     add_triangle(mesh, a, c, d, normal, normal, normal)
 
 
+def quad_normal(a, b, c):
+    return vec_normalize(vec_cross(vec_sub(b, a), vec_sub(c, a)))
+
+
+def add_quad_auto(mesh, a, b, c, d):
+    normal = quad_normal(a, b, c)
+    add_quad(mesh, a, b, c, d, normal)
+
+
 def make_mesh(material):
     return {"material": material, "positions": [], "normals": []}
 
@@ -88,6 +105,37 @@ def box_mesh(material, center, size, scale=(1.0, 1.0, 1.0), rotation=(0.0, 0.0, 
         points = [transform_point(corner, scale, rotation, center) for corner in corners]
         n = transform_normal(normal, scale, rotation)
         add_quad(mesh, points[0], points[1], points[2], points[3], n)
+    return mesh
+
+
+def tapered_box_mesh(material, center, bottom_size, top_size, height, rotation=(0.0, 0.0, 0.0)):
+    mesh = make_mesh(material)
+    half_h = height * 0.5
+    bottom_w, bottom_d = bottom_size
+    top_w, top_d = top_size
+
+    local = {
+        "bfl": (-bottom_w * 0.5, -half_h, bottom_d * 0.5),
+        "bfr": (bottom_w * 0.5, -half_h, bottom_d * 0.5),
+        "bbr": (bottom_w * 0.5, -half_h, -bottom_d * 0.5),
+        "bbl": (-bottom_w * 0.5, -half_h, -bottom_d * 0.5),
+        "tfl": (-top_w * 0.5, half_h, top_d * 0.5),
+        "tfr": (top_w * 0.5, half_h, top_d * 0.5),
+        "tbr": (top_w * 0.5, half_h, -top_d * 0.5),
+        "tbl": (-top_w * 0.5, half_h, -top_d * 0.5),
+    }
+
+    points = {
+        key: transform_point(value, rotation=rotation, translation=center)
+        for key, value in local.items()
+    }
+
+    add_quad_auto(mesh, points["bfl"], points["bfr"], points["tfr"], points["tfl"])
+    add_quad_auto(mesh, points["bfr"], points["bbr"], points["tbr"], points["tfr"])
+    add_quad_auto(mesh, points["bbr"], points["bbl"], points["tbl"], points["tbr"])
+    add_quad_auto(mesh, points["bbl"], points["bfl"], points["tfl"], points["tbl"])
+    add_quad_auto(mesh, points["tfl"], points["tfr"], points["tbr"], points["tbl"])
+    add_quad_auto(mesh, points["bbl"], points["bbr"], points["bfr"], points["bfl"])
     return mesh
 
 
@@ -277,86 +325,87 @@ def build_glb(meshes):
 
 def create_chase_meshes():
     meshes = []
-    hoodie_rot = (0.0, 0.0, 0.0)
-
-    meshes.append(box_mesh("hoodie", (0.0, 1.62, 0.0), (0.78, 1.2, 0.46)))
+    meshes.append(tapered_box_mesh("hoodie", (0.0, 1.64, 0.0), (0.66, 0.38), (0.88, 0.5), 1.26))
     meshes.append(box_mesh("hoodie_rib", (0.0, 0.93, 0.0), (0.66, 0.42, 0.38)))
-    meshes.append(sphere_mesh("hoodie", (0.0, 2.22, -0.18), 0.34, scale=(1.08, 1.0, 0.74)))
-    meshes.append(box_mesh("hoodie_rib", (0.0, 2.11, 0.06), (0.4, 0.11, 0.1), scale=(1.0, 1.0, 0.8)))
-    meshes.append(box_mesh("hoodie", (-0.43, 1.66, 0.01), (0.16, 1.08, 0.16), rotation=(0.0, 0.0, 0.14)))
-    meshes.append(box_mesh("hoodie", (0.43, 1.66, 0.01), (0.16, 1.08, 0.16), rotation=(0.0, 0.0, -0.14)))
+    meshes.append(sphere_mesh("hoodie", (0.0, 2.22, -0.19), 0.35, scale=(1.14, 1.04, 0.76)))
+    meshes.append(tapered_box_mesh("hoodie_rib", (0.0, 2.11, 0.065), (0.25, 0.06), (0.44, 0.11), 0.11))
+    meshes.append(tapered_box_mesh("hoodie", (-0.43, 1.66, 0.01), (0.11, 0.11), (0.18, 0.17), 1.12, rotation=(0.0, 0.0, 0.14)))
+    meshes.append(tapered_box_mesh("hoodie", (0.43, 1.66, 0.01), (0.11, 0.11), (0.18, 0.17), 1.12, rotation=(0.0, 0.0, -0.14)))
     meshes.append(box_mesh("zipper", (0.0, 1.54, 0.235), (0.03, 1.05, 0.028)))
     meshes.append(cylinder_mesh("zipper", (-0.075, 1.84, 0.24), 0.011, 0.56, rotation=(0.0, 0.0, 0.07)))
     meshes.append(cylinder_mesh("zipper", (0.075, 1.84, 0.24), 0.011, 0.56, rotation=(0.0, 0.0, -0.07)))
 
     meshes.append(cylinder_mesh("skin", (0.0, 2.25, 0.0), 0.085, 0.18))
-    meshes.append(sphere_mesh("skin", (0.0, 2.62, 0.005), 0.35, scale=(0.83, 1.1, 0.9)))
-    meshes.append(box_mesh("warm_skin", (0.0, 2.56, 0.18), (0.27, 0.34, 0.11)))
-    meshes.append(box_mesh("skin", (0.0, 2.37, 0.095), (0.22, 0.14, 0.17), rotation=(-0.2, 0.0, 0.0)))
-    meshes.append(box_mesh("skin", (0.0, 2.305, 0.115), (0.115, 0.07, 0.1), rotation=(-0.25, 0.0, 0.0)))
-    meshes.append(sphere_mesh("skin", (-0.145, 2.5, 0.15), 0.09, scale=(1.12, 0.76, 0.7)))
-    meshes.append(sphere_mesh("skin", (0.145, 2.5, 0.15), 0.09, scale=(1.12, 0.76, 0.7)))
-    meshes.append(sphere_mesh("warm_skin", (-0.145, 2.57, 0.19), 0.055, scale=(1.2, 0.68, 0.8)))
-    meshes.append(sphere_mesh("warm_skin", (0.145, 2.57, 0.19), 0.055, scale=(1.2, 0.68, 0.8)))
+    meshes.append(sphere_mesh("skin", (0.0, 2.63, 0.0), 0.35, scale=(0.82, 1.12, 0.92)))
+    meshes.append(tapered_box_mesh("warm_skin", (0.0, 2.56, 0.18), (0.18, 0.085), (0.28, 0.11), 0.36))
+    meshes.append(tapered_box_mesh("skin", (0.0, 2.385, 0.102), (0.12, 0.12), (0.23, 0.17), 0.19, rotation=(-0.16, 0.0, 0.0)))
+    meshes.append(tapered_box_mesh("skin", (0.0, 2.305, 0.122), (0.07, 0.085), (0.12, 0.11), 0.08, rotation=(-0.2, 0.0, 0.0)))
+    meshes.append(sphere_mesh("skin", (-0.142, 2.5, 0.152), 0.086, scale=(1.08, 0.74, 0.66)))
+    meshes.append(sphere_mesh("skin", (0.142, 2.5, 0.152), 0.086, scale=(1.08, 0.74, 0.66)))
+    meshes.append(sphere_mesh("warm_skin", (-0.145, 2.57, 0.194), 0.056, scale=(1.24, 0.72, 0.82)))
+    meshes.append(sphere_mesh("warm_skin", (0.145, 2.57, 0.194), 0.056, scale=(1.24, 0.72, 0.82)))
     meshes.append(sphere_mesh("skin", (-0.28, 2.58, -0.01), 0.05, scale=(0.7, 1.0, 0.48)))
     meshes.append(sphere_mesh("skin", (0.28, 2.58, -0.01), 0.05, scale=(0.7, 1.0, 0.48)))
+    meshes.append(box_mesh("warm_skin", (0.0, 2.72, 0.12), (0.16, 0.1, 0.07)))
 
-    meshes.append(sphere_mesh("hair", (0.0, 2.88, -0.015), 0.28, scale=(1.08, 1.02, 0.94)))
+    meshes.append(sphere_mesh("hair", (0.0, 2.9, -0.01), 0.29, scale=(1.1, 1.05, 0.96)))
     curl_specs = [
-        (0.0, 3.13, 0.03, 0.105, (1.1, 1.0, 1.0)),
-        (-0.13, 3.1, 0.08, 0.102, (1.0, 1.08, 1.0)),
-        (0.13, 3.08, 0.08, 0.102, (1.0, 1.08, 1.0)),
+        (0.0, 3.17, 0.03, 0.106, (1.12, 1.02, 1.0)),
+        (-0.13, 3.11, 0.08, 0.104, (1.02, 1.1, 1.0)),
+        (0.13, 3.09, 0.08, 0.104, (1.02, 1.1, 1.0)),
         (-0.26, 3.02, 0.03, 0.1, (1.0, 1.0, 0.96)),
         (0.26, 3.02, 0.03, 0.1, (1.0, 1.0, 0.96)),
         (-0.31, 2.9, -0.02, 0.095, (0.95, 0.95, 0.9)),
         (0.31, 2.9, -0.02, 0.095, (0.95, 0.95, 0.9)),
         (-0.19, 2.87, 0.14, 0.09, (0.98, 1.0, 0.92)),
         (0.19, 2.87, 0.14, 0.09, (0.98, 1.0, 0.92)),
-        (-0.08, 2.95, 0.17, 0.088, (1.0, 1.0, 0.94)),
-        (0.08, 2.94, 0.17, 0.088, (1.0, 1.0, 0.94)),
-        (-0.23, 2.75, 0.16, 0.086, (0.92, 1.0, 0.9)),
-        (0.23, 2.75, 0.16, 0.086, (0.92, 1.0, 0.9)),
-        (0.0, 2.76, 0.18, 0.082, (0.96, 1.0, 0.92)),
+        (-0.08, 2.96, 0.18, 0.09, (1.02, 1.0, 0.96)),
+        (0.08, 2.95, 0.18, 0.09, (1.02, 1.0, 0.96)),
+        (-0.23, 2.75, 0.17, 0.088, (0.94, 1.0, 0.9)),
+        (0.23, 2.75, 0.17, 0.088, (0.94, 1.0, 0.9)),
+        (0.0, 2.77, 0.19, 0.084, (0.98, 1.02, 0.92)),
+        (-0.13, 2.82, 0.2, 0.073, (1.0, 0.95, 0.88)),
+        (0.13, 2.82, 0.2, 0.073, (1.0, 0.95, 0.88)),
     ]
     for x, y, z, radius, scale in curl_specs:
         meshes.append(sphere_mesh("hair", (x, y, z), radius, scale=scale))
 
-    meshes.append(box_mesh("brow", (-0.088, 2.67, 0.222), (0.1, 0.018, 0.028), rotation=(0.0, 0.0, -0.13)))
-    meshes.append(box_mesh("brow", (0.088, 2.67, 0.222), (0.1, 0.018, 0.028), rotation=(0.0, 0.0, 0.13)))
-    meshes.append(box_mesh("skin", (0.0, 2.655, 0.202), (0.13, 0.028, 0.05)))
-    meshes.append(sphere_mesh("warm_skin", (-0.09, 2.575, 0.205), 0.05, scale=(1.12, 0.75, 0.5)))
-    meshes.append(sphere_mesh("warm_skin", (0.09, 2.575, 0.205), 0.05, scale=(1.12, 0.75, 0.5)))
-    meshes.append(sphere_mesh("eye_white", (-0.09, 2.582, 0.235), 0.032, scale=(1.22, 0.82, 0.84)))
-    meshes.append(sphere_mesh("eye_white", (0.09, 2.582, 0.235), 0.032, scale=(1.22, 0.82, 0.84)))
-    meshes.append(sphere_mesh("pupil", (-0.09, 2.58, 0.259), 0.015, scale=(0.9, 1.1, 0.55)))
-    meshes.append(sphere_mesh("pupil", (0.09, 2.58, 0.259), 0.015, scale=(0.9, 1.1, 0.55)))
-    meshes.append(box_mesh("warm_skin", (-0.09, 2.603, 0.241), (0.066, 0.02, 0.03), rotation=(0.0, 0.0, -0.05)))
-    meshes.append(box_mesh("warm_skin", (0.09, 2.603, 0.241), (0.066, 0.02, 0.03), rotation=(0.0, 0.0, 0.05)))
-    meshes.append(box_mesh("skin", (-0.09, 2.552, 0.236), (0.062, 0.012, 0.02)))
-    meshes.append(box_mesh("skin", (0.09, 2.552, 0.236), (0.062, 0.012, 0.02)))
+    meshes.append(box_mesh("brow", (-0.088, 2.67, 0.226), (0.104, 0.018, 0.03), rotation=(0.0, 0.0, -0.13)))
+    meshes.append(box_mesh("brow", (0.088, 2.67, 0.226), (0.104, 0.018, 0.03), rotation=(0.0, 0.0, 0.13)))
+    meshes.append(tapered_box_mesh("skin", (0.0, 2.655, 0.205), (0.09, 0.04), (0.14, 0.05), 0.03))
+    meshes.append(sphere_mesh("warm_skin", (-0.09, 2.575, 0.205), 0.052, scale=(1.16, 0.78, 0.46)))
+    meshes.append(sphere_mesh("warm_skin", (0.09, 2.575, 0.205), 0.052, scale=(1.16, 0.78, 0.46)))
+    meshes.append(sphere_mesh("eye_white", (-0.09, 2.582, 0.238), 0.03, scale=(1.18, 0.78, 0.82)))
+    meshes.append(sphere_mesh("eye_white", (0.09, 2.582, 0.238), 0.03, scale=(1.18, 0.78, 0.82)))
+    meshes.append(sphere_mesh("pupil", (-0.09, 2.58, 0.261), 0.014, scale=(0.9, 1.1, 0.55)))
+    meshes.append(sphere_mesh("pupil", (0.09, 2.58, 0.261), 0.014, scale=(0.9, 1.1, 0.55)))
+    meshes.append(box_mesh("warm_skin", (-0.09, 2.603, 0.244), (0.064, 0.02, 0.026), rotation=(0.0, 0.0, -0.05)))
+    meshes.append(box_mesh("warm_skin", (0.09, 2.603, 0.244), (0.064, 0.02, 0.026), rotation=(0.0, 0.0, 0.05)))
+    meshes.append(box_mesh("skin", (-0.09, 2.552, 0.239), (0.058, 0.012, 0.018)))
+    meshes.append(box_mesh("skin", (0.09, 2.552, 0.239), (0.058, 0.012, 0.018)))
 
-    meshes.append(box_mesh("skin", (0.0, 2.54, 0.222), (0.05, 0.13, 0.05)))
-    meshes.append(box_mesh("warm_skin", (0.0, 2.47, 0.253), (0.078, 0.052, 0.07), rotation=(-0.08, 0.0, 0.0)))
-    meshes.append(sphere_mesh("warm_skin", (-0.038, 2.47, 0.242), 0.03, scale=(0.9, 0.72, 0.9)))
-    meshes.append(sphere_mesh("warm_skin", (0.038, 2.47, 0.242), 0.03, scale=(0.9, 0.72, 0.9)))
-    meshes.append(sphere_mesh("pupil", (-0.022, 2.447, 0.266), 0.01, scale=(1.1, 0.7, 1.2)))
-    meshes.append(sphere_mesh("pupil", (0.022, 2.447, 0.266), 0.01, scale=(1.1, 0.7, 1.2)))
-    meshes.append(box_mesh("skin", (0.0, 2.42, 0.236), (0.036, 0.04, 0.022)))
+    meshes.append(tapered_box_mesh("skin", (0.0, 2.54, 0.224), (0.028, 0.03), (0.058, 0.05), 0.13))
+    meshes.append(tapered_box_mesh("warm_skin", (0.0, 2.468, 0.255), (0.055, 0.06), (0.088, 0.076), 0.055, rotation=(-0.08, 0.0, 0.0)))
+    meshes.append(sphere_mesh("warm_skin", (-0.04, 2.47, 0.244), 0.029, scale=(0.92, 0.7, 0.92)))
+    meshes.append(sphere_mesh("warm_skin", (0.04, 2.47, 0.244), 0.029, scale=(0.92, 0.7, 0.92)))
+    meshes.append(sphere_mesh("pupil", (-0.022, 2.447, 0.268), 0.0095, scale=(1.1, 0.7, 1.2)))
+    meshes.append(sphere_mesh("pupil", (0.022, 2.447, 0.268), 0.0095, scale=(1.1, 0.7, 1.2)))
+    meshes.append(box_mesh("skin", (0.0, 2.422, 0.238), (0.034, 0.04, 0.02)))
 
-    meshes.append(box_mesh("lip", (-0.03, 2.392, 0.245), (0.055, 0.016, 0.028), rotation=(0.0, 0.0, -0.1)))
-    meshes.append(box_mesh("lip", (0.03, 2.392, 0.245), (0.055, 0.016, 0.028), rotation=(0.0, 0.0, 0.1)))
-    meshes.append(box_mesh("lip", (0.0, 2.398, 0.246), (0.024, 0.013, 0.026)))
-    meshes.append(box_mesh("lip", (0.0, 2.364, 0.24), (0.092, 0.024, 0.034)))
-    meshes.append(box_mesh("pupil", (0.0, 2.383, 0.255), (0.09, 0.008, 0.014)))
-    meshes.append(sphere_mesh("lip", (-0.048, 2.382, 0.247), 0.01))
-    meshes.append(sphere_mesh("lip", (0.048, 2.382, 0.247), 0.01))
-    meshes.append(box_mesh("brow", (0.0, 2.413, 0.252), (0.08, 0.012, 0.016)))
-    meshes.append(box_mesh("brow", (0.0, 2.332, 0.188), (0.034, 0.028, 0.018)))
+    meshes.append(box_mesh("lip", (-0.029, 2.392, 0.247), (0.05, 0.016, 0.028), rotation=(0.0, 0.0, -0.1)))
+    meshes.append(box_mesh("lip", (0.029, 2.392, 0.247), (0.05, 0.016, 0.028), rotation=(0.0, 0.0, 0.1)))
+    meshes.append(box_mesh("lip", (0.0, 2.398, 0.247), (0.024, 0.013, 0.026)))
+    meshes.append(tapered_box_mesh("lip", (0.0, 2.364, 0.242), (0.055, 0.022), (0.096, 0.034), 0.024))
+    meshes.append(box_mesh("pupil", (0.0, 2.383, 0.258), (0.082, 0.007, 0.012)))
+    meshes.append(sphere_mesh("lip", (-0.046, 2.382, 0.248), 0.009))
+    meshes.append(sphere_mesh("lip", (0.046, 2.382, 0.248), 0.009))
+    meshes.append(box_mesh("brow", (0.0, 2.413, 0.254), (0.076, 0.011, 0.015)))
+    meshes.append(box_mesh("brow", (0.0, 2.332, 0.19), (0.03, 0.028, 0.018)))
 
-    meshes.append(box_mesh("denim", (-0.13, 0.58, 0.0), (0.17, 1.33, 0.17)))
-    meshes.append(box_mesh("denim", (0.13, 0.58, 0.0), (0.17, 1.33, 0.17)))
-    meshes.append(box_mesh("shoe", (-0.13, 0.06, 0.08), (0.18, 0.08, 0.3)))
-    meshes.append(box_mesh("shoe", (0.13, 0.06, 0.08), (0.18, 0.08, 0.3)))
+    meshes.append(tapered_box_mesh("denim", (-0.13, 0.58, 0.0), (0.13, 0.12), (0.18, 0.17), 1.33))
+    meshes.append(tapered_box_mesh("denim", (0.13, 0.58, 0.0), (0.13, 0.12), (0.18, 0.17), 1.33))
+    meshes.append(tapered_box_mesh("shoe", (-0.13, 0.06, 0.09), (0.16, 0.26), (0.18, 0.31), 0.08))
+    meshes.append(tapered_box_mesh("shoe", (0.13, 0.06, 0.09), (0.16, 0.26), (0.18, 0.31), 0.08))
     meshes.append(sphere_mesh("skin", (-0.5, 1.03, 0.04), 0.07, scale=(0.72, 0.82, 0.65)))
     meshes.append(sphere_mesh("skin", (0.5, 1.03, 0.04), 0.07, scale=(0.72, 0.82, 0.65)))
 

@@ -21,6 +21,7 @@ const hud = {
   objectiveHint: document.getElementById("objectiveHint"),
   modelState: document.getElementById("modelState"),
   markerState: document.getElementById("markerState"),
+  viewState: document.getElementById("viewState"),
   healthBar: document.getElementById("healthBar"),
   fearBar: document.getElementById("fearBar"),
   staminaBar: document.getElementById("staminaBar")
@@ -32,7 +33,8 @@ const state = {
   objectiveIndex: 0,
   health: 100,
   fear: 8,
-  stamina: 100
+  stamina: 100,
+  reviewMode: true
 };
 
 const input = {
@@ -61,6 +63,7 @@ function refreshHUD() {
   hud.objectiveTitle.textContent = `Reach ${objective.name}`;
   hud.objectiveHint.textContent = "Use this build to lock in Chase's face, curls, hoodie silhouette, and proportions first. The gameplay shell can be tuned after the character reads right.";
   hud.markerState.textContent = objective.name;
+  hud.viewState.textContent = state.reviewMode ? "Character Review" : "Third Person";
   hud.healthBar.style.width = `${state.health}%`;
   hud.fearBar.style.width = `${state.fear}%`;
   hud.staminaBar.style.width = `${state.stamina}%`;
@@ -126,8 +129,10 @@ function updateMarkers(dt) {
 }
 
 function updateCamera(dt) {
-  const radius = 11.5;
-  const vertical = 5.2 + Math.sin(input.pitch) * 1.6;
+  const radius = state.reviewMode ? 9.6 : 11.5;
+  const verticalBase = state.reviewMode ? 2.85 : 5.2;
+  const verticalSwing = state.reviewMode ? 0.85 : 1.6;
+  const vertical = verticalBase + Math.sin(input.pitch) * verticalSwing;
   const offset = new THREE.Vector3(
     Math.sin(input.yaw) * radius,
     vertical,
@@ -135,7 +140,7 @@ function updateCamera(dt) {
   );
   const ideal = chase.group.position.clone().add(offset);
   camera.position.lerp(ideal, 1 - Math.exp(-5.5 * dt));
-  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, 1.8, 0));
+  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, state.reviewMode ? 2.1 : 1.8, 0));
   camera.lookAt(lookTarget);
 }
 
@@ -164,6 +169,7 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyE") input.turn = -1;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
   if (event.code === "KeyR") resetChase();
+  if (event.code === "KeyF") state.reviewMode = !state.reviewMode;
 });
 
 window.addEventListener("keyup", (event) => {
