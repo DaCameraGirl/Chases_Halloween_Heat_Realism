@@ -43,8 +43,8 @@ const input = {
   turn: 0,
   sprint: false,
   dragging: false,
-  yaw: Math.PI * 0.08,
-  pitch: -0.34,
+  yaw: Math.PI,
+  pitch: 0.14,
   lastX: 0,
   lastY: 0
 };
@@ -53,6 +53,11 @@ const clock = new THREE.Clock();
 const move = new THREE.Vector3();
 const spawn = new THREE.Vector3(0, 0, 24);
 const lookTarget = new THREE.Vector3();
+
+function setReviewOrbitDefaults() {
+  input.yaw = Math.PI;
+  input.pitch = 0.14;
+}
 
 function currentObjective() {
   return missionRoute[state.objectiveIndex];
@@ -72,6 +77,7 @@ function refreshHUD() {
 function resetChase() {
   chase.group.position.copy(spawn);
   chase.group.rotation.y = Math.PI;
+  if (state.reviewMode) setReviewOrbitDefaults();
   state.objectiveIndex = 0;
   state.health = 100;
   state.fear = 8;
@@ -134,18 +140,19 @@ function updateMarkers(dt) {
 }
 
 function updateCamera(dt) {
-  const radius = state.reviewMode ? 11.2 : 11.5;
-  const verticalBase = state.reviewMode ? 0.7 : 5.2;
-  const verticalSwing = state.reviewMode ? 0.65 : 1.6;
-  const vertical = verticalBase + Math.sin(input.pitch) * verticalSwing;
+  const focus = chase.group.position.clone().add(
+    state.reviewMode ? new THREE.Vector3(0, 1.98, 0) : new THREE.Vector3(0, 1.8, 0)
+  );
+  const radius = state.reviewMode ? 4.7 : 11.5;
+  const verticalSwing = state.reviewMode ? 1.8 : 1.6;
   const offset = new THREE.Vector3(
     Math.sin(input.yaw) * radius,
-    vertical,
+    Math.sin(input.pitch) * verticalSwing,
     Math.cos(input.yaw) * radius
   );
-  const ideal = chase.group.position.clone().add(offset);
+  const ideal = focus.clone().add(offset);
   camera.position.lerp(ideal, 1 - Math.exp(-5.5 * dt));
-  lookTarget.copy(chase.group.position).add(new THREE.Vector3(0, state.reviewMode ? 0.05 : 1.8, 0));
+  lookTarget.copy(focus);
   camera.lookAt(lookTarget);
 }
 
@@ -174,7 +181,10 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyE") input.turn = -1;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
   if (event.code === "KeyR") resetChase();
-  if (event.code === "KeyF") state.reviewMode = !state.reviewMode;
+  if (event.code === "KeyF") {
+    state.reviewMode = !state.reviewMode;
+    if (state.reviewMode) setReviewOrbitDefaults();
+  }
 });
 
 window.addEventListener("keyup", (event) => {
@@ -201,7 +211,11 @@ window.addEventListener("pointermove", (event) => {
   input.lastX = event.clientX;
   input.lastY = event.clientY;
   input.yaw -= dx * 0.006;
-  input.pitch = THREE.MathUtils.clamp(input.pitch - dy * 0.004, -0.65, 0.45);
+  input.pitch = THREE.MathUtils.clamp(
+    input.pitch - dy * 0.004,
+    state.reviewMode ? -0.3 : -0.65,
+    state.reviewMode ? 0.4 : 0.45
+  );
 });
 
 window.addEventListener("pointerup", () => {

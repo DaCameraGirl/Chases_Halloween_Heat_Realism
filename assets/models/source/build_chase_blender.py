@@ -155,15 +155,15 @@ def sculpt_torso(obj):
     def transform(bm):
         for vert in bm.verts:
             if vert.co.y > 0.28:
-                vert.co.x *= 1.08
+                vert.co.x *= 1.05
                 vert.co.z *= 0.96
-            if -0.1 < vert.co.y < 0.24 and vert.co.z > 0:
-                vert.co.x *= 0.95
+            if -0.08 < vert.co.y < 0.24 and vert.co.z > 0:
+                vert.co.x *= 0.97
             if vert.co.y < -0.18:
-                vert.co.x *= 0.9
-                vert.co.z *= 0.9
+                vert.co.x *= 0.95
+                vert.co.z *= 0.92
             if vert.co.y < -0.32:
-                vert.co.z *= 0.86
+                vert.co.z *= 0.9
 
     edit_mesh(obj, transform)
 
@@ -210,7 +210,7 @@ def build_model():
     rib = add_cube("HoodieRib", (0.0, 0.97, 0.0), (0.29, 0.16, 0.16), materials["hoodie_rib"], bevel=0.018)
     body.extend([shoulder_l, shoulder_r, rib])
 
-    hood = add_uv_sphere("HoodBack", (0.0, 2.2, -0.19), (0.36, 0.31, 0.23), materials["hoodie"], segments=32, rings=20)
+    hood = add_cube("HoodBack", (0.0, 2.17, -0.155), (0.26, 0.23, 0.14), materials["hoodie"], rotation=(math.radians(8), 0.0, 0.0), bevel=0.03, subsurf=1)
     body.append(hood)
 
     hood_lip = add_cube("HoodLip", (0.0, 2.11, 0.05), (0.23, 0.045, 0.05), materials["hoodie_rib"], bevel=0.015)
@@ -218,16 +218,16 @@ def build_model():
     collar_r = add_cube("CollarRight", (0.09, 2.06, 0.1), (0.06, 0.12, 0.03), materials["hoodie_rib"], rotation=(math.radians(8), 0.0, math.radians(18)), bevel=0.01, subsurf=1)
     body.extend([hood_lip, collar_l, collar_r])
 
-    left_arm = add_cylinder("LeftArm", (-0.41, 1.58, 0.0), 0.068, 1.08, materials["hoodie"], rotation=(0.0, 0.0, math.radians(6)))
-    right_arm = add_cylinder("RightArm", (0.41, 1.58, 0.0), 0.068, 1.08, materials["hoodie"], rotation=(0.0, 0.0, math.radians(-6)))
+    left_arm = add_cube("LeftArm", (-0.4, 1.56, 0.0), (0.072, 0.52, 0.075), materials["hoodie"], rotation=(0.0, 0.0, math.radians(5)), bevel=0.02, subsurf=1)
+    right_arm = add_cube("RightArm", (0.4, 1.56, 0.0), (0.072, 0.52, 0.075), materials["hoodie"], rotation=(0.0, 0.0, math.radians(-5)), bevel=0.02, subsurf=1)
     body.extend([left_arm, right_arm])
 
     left_hand = add_uv_sphere("LeftHand", (-0.47, 1.03, 0.03), (0.045, 0.055, 0.04), materials["skin"], segments=24, rings=16, subsurf=1)
     right_hand = add_uv_sphere("RightHand", (0.47, 1.03, 0.03), (0.045, 0.055, 0.04), materials["skin"], segments=24, rings=16, subsurf=1)
     body.extend([left_hand, right_hand])
 
-    left_leg = add_cylinder("LeftLeg", (-0.12, 0.6, 0.0), 0.08, 1.36, materials["denim"])
-    right_leg = add_cylinder("RightLeg", (0.12, 0.6, 0.0), 0.08, 1.36, materials["denim"])
+    left_leg = add_cube("LeftLeg", (-0.12, 0.6, 0.0), (0.07, 0.67, 0.075), materials["denim"], bevel=0.018, subsurf=1)
+    right_leg = add_cube("RightLeg", (0.12, 0.6, 0.0), (0.07, 0.67, 0.075), materials["denim"], bevel=0.018, subsurf=1)
     body.extend([left_leg, right_leg])
 
     left_shoe = add_cube("LeftShoe", (-0.13, 0.07, 0.1), (0.11, 0.04, 0.16), materials["shoe"], bevel=0.01, subsurf=1)
