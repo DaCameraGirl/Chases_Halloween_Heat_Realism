@@ -2,10 +2,10 @@
   "scale": 1,
   "rotationDegrees": [
     0,
-    0,
+    180,
     0
   ],
-  "displayName": "Chase July 4 2026 GLB",
+  "displayName": "Blender Chase Prototype",
   "boundsNode": "",
   "alignFeetToGround": true,
   "targetHeight": 3.1,
