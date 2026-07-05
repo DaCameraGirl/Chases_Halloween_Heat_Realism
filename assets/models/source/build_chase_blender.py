@@ -65,8 +65,8 @@ EDGES = [
 ]
 
 NECK_TOP_Y = JOINTS["neck_base"][1] + RADII["neck_base"][0] * 0.8
-HEAD_CENTER = (0.0, NECK_TOP_Y + 0.115, 0.012)
-HEAD_SCALE = (0.098, 0.118, 0.108)
+HEAD_CENTER = (0.0, NECK_TOP_Y + 0.16, 0.04)
+HEAD_SCALE = (0.096, 0.122, 0.104)
 
 
 def clear_scene():
@@ -220,6 +220,16 @@ def sculpt_head(obj):
             if 0.28 < y < 0.55 and z > 0.05:
                 strength = 1.0 - min(1.0, abs(y - 0.4) / 0.16)
                 vert.co.z += 0.05 * strength
+            # Give the face a gentler front plane so the projected photo does
+            # not read like it is wrapped deep around a round skull.
+            if -0.18 < y < 0.22 and abs(x) < 0.075 and z > 0.0:
+                cheek_falloff = 1.0 - min(1.0, abs(x) / 0.075)
+                vertical_falloff = 1.0 - min(1.0, abs(y + 0.01) / 0.23)
+                vert.co.z += 0.018 * cheek_falloff * vertical_falloff
+            # Pull the upper forehead slightly back so the curls sit above the
+            # face instead of blending into it from the front.
+            if 0.18 < y < 0.45 and z > 0.02:
+                vert.co.z -= 0.018 * (1.0 - min(1.0, abs(y - 0.31) / 0.14))
             # Slight back-of-head rounding.
             if z < -0.3:
                 vert.co.z *= 0.94
@@ -230,8 +240,8 @@ def build_hair(materials, hair_center):
     hair_parts = []
     core = add_uv_sphere(
         "HairCore",
-        (hair_center[0], hair_center[1] + 0.01, hair_center[2] - 0.01),
-        (HEAD_SCALE[0] * 1.08, HEAD_SCALE[1] * 0.85, HEAD_SCALE[2] * 1.05),
+        (hair_center[0], hair_center[1] + 0.05, hair_center[2] - 0.05),
+        (HEAD_SCALE[0] * 0.98, HEAD_SCALE[1] * 0.58, HEAD_SCALE[2] * 0.78),
         materials["hair"], segments=28, rings=18, subsurf=1,
     )
     hair_parts.append(core)
@@ -255,6 +265,23 @@ def build_hair(materials, hair_center):
             hair_center[1] + ry * HEAD_SCALE[1] * radius_scale + 0.02,
             hair_center[2] + rz * HEAD_SCALE[2] * radius_scale,
         )
+        face_clear_z = HEAD_CENTER[2] + HEAD_SCALE[2] * 0.02
+        brow_line_y = HEAD_CENTER[1] + HEAD_SCALE[1] * 0.52
+        if pos[2] > face_clear_z and pos[1] < brow_line_y:
+            overlap = pos[2] - face_clear_z
+            pos = (
+                pos[0] * 0.9,
+                brow_line_y + 0.02 + overlap * 0.95,
+                face_clear_z - 0.045 - overlap * 0.55,
+            )
+            curl_radius *= 0.8
+        elif pos[2] > HEAD_CENTER[2] and abs(pos[0]) < HEAD_SCALE[0] * 0.45:
+            pos = (
+                pos[0] * 0.9,
+                pos[1] + 0.06,
+                pos[2] - 0.05,
+            )
+            curl_radius *= 0.84
         curl = add_uv_sphere(
             f"Curl{i:02d}", pos, (curl_radius, curl_radius, curl_radius),
             materials["hair"], segments=16, rings=12, subsurf=1,
@@ -328,12 +355,12 @@ def build_hood(materials):
         (0.11, 0.13, 0.075), materials["hoodie"], rotation=(math.radians(12), 0.0, 0.0), bevel=0.02, subsurf=1,
     )
     collar_l = add_cube(
-        "CollarLeft", (-0.07, neck[1] + 0.02, -0.01),
-        (0.045, 0.06, 0.02), materials["hoodie_rib"], rotation=(0.0, 0.0, math.radians(-10)), bevel=0.008, subsurf=1,
+        "CollarLeft", (-0.078, neck[1] + 0.0, -0.02),
+        (0.04, 0.052, 0.018), materials["hoodie_rib"], rotation=(0.0, 0.0, math.radians(-10)), bevel=0.008, subsurf=1,
     )
     collar_r = add_cube(
-        "CollarRight", (0.07, neck[1] + 0.02, -0.01),
-        (0.045, 0.06, 0.02), materials["hoodie_rib"], rotation=(0.0, 0.0, math.radians(10)), bevel=0.008, subsurf=1,
+        "CollarRight", (0.078, neck[1] + 0.0, -0.02),
+        (0.04, 0.052, 0.018), materials["hoodie_rib"], rotation=(0.0, 0.0, math.radians(10)), bevel=0.008, subsurf=1,
     )
     zipper = add_cube(
         "Zipper", (0.0, (JOINTS["chest"][1] + JOINTS["hip_l"][1]) / 2, 0.15),
