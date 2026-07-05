@@ -3,9 +3,7 @@ import * as THREE from "three";
 export const missionRoute = [
   { name: "Costume Crypt", position: new THREE.Vector3(-16, 0, -10), color: 0xff88db },
   { name: "Hearse Garage", position: new THREE.Vector3(16, 0, -16), color: 0x73b8ff },
-  { name: "Hex Market", position: new THREE.Vector3(22, 0, 12), color: 0x78ffc0 },
-  { name: "Ritual Beacon", position: new THREE.Vector3(0, 0, 18), color: 0xffd56a },
-  { name: "Safehouse", position: new THREE.Vector3(-26, 0, 8), color: 0xf0f3ff }
+  { name: "Hex Market", position: new THREE.Vector3(22, 0, 12), color: 0x78ffc0 }
 ];
 
 function makeWindow(color = 0xfff4d9) {
@@ -170,6 +168,39 @@ export function createWorld(scene) {
         scene.add(windowPanel);
       }
     }
+  }
+
+  const blockerSpecs = [
+    { x: -8, z: 8, w: 2.6, h: 1.6, d: 1.2, color: 0xa04f2a },
+    { x: 8, z: -6, w: 2.2, h: 1.4, d: 1.2, color: 0xc76c39 },
+    { x: 9, z: 10, w: 3.4, h: 1.2, d: 1.2, color: 0x6e7487 },
+    { x: -15, z: -1, w: 2.8, h: 1.3, d: 1.2, color: 0x7f5838 }
+  ];
+
+  for (const spec of blockerSpecs) {
+    const group = new THREE.Group();
+    group.position.set(spec.x, 0, spec.z);
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(spec.w, spec.h, spec.d),
+      new THREE.MeshStandardMaterial({
+        color: spec.color,
+        roughness: 0.88,
+        metalness: 0.08
+      })
+    );
+    body.position.y = spec.h / 2;
+    group.add(body);
+
+    const glow = new THREE.PointLight(0xff8c4f, 0.8, 7, 2);
+    glow.position.set(0, spec.h + 0.4, 0);
+    group.add(glow);
+
+    scene.add(group);
+    world.blockers.push({
+      group,
+      radius: Math.max(spec.w, spec.d) * 0.55
+    });
   }
 
   const markerGeometry = new THREE.CylinderGeometry(0.18, 0.18, 8, 8);

@@ -48,6 +48,9 @@
         <div><dt>Model</dt><dd id="modelState">Starter Rig</dd></div>
         <div><dt>Marker</dt><dd id="markerState">Costume Crypt</dd></div>
         <div><dt>View</dt><dd id="viewState">Character Review</dd></div>
+        <div><dt>Timer</dt><dd id="timerState">90s</dd></div>
+        <div><dt>Progress</dt><dd id="progressState">0 / 3</dd></div>
+        <div><dt>Mission</dt><dd id="missionState">Live</dd></div>
       </dl>
     </section>
 
@@ -65,8 +68,16 @@
 
     <section class="panel pipeline">
       <span class="eyebrow">Next Upgrade</span>
-      <p>This branch is the home for the more realistic Chase build. The current figure is a starter stand-in until we swap in a custom 3D version based on your photo references.</p>
+      <p>The first real mission is now a three-stop Halloween errand run. We can keep tuning Chase's face later, but now the build has a real gameplay loop to grow from.</p>
     </section>
+  </div>
+
+  <div id="missionOverlay" class="overlay hidden" aria-live="polite">
+    <div class="overlay-card">
+      <span class="eyebrow">Mission Update</span>
+      <h2 id="overlayTitle">Halloween Run Complete</h2>
+      <p id="overlayText">Chase made the route. Press R to run it again or keep exploring the block.</p>
+    </div>
   </div>
 
   <script type="module" src="./js/main.js"></script>

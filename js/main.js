@@ -22,9 +22,15 @@ const hud = {
   modelState: document.getElementById("modelState"),
   markerState: document.getElementById("markerState"),
   viewState: document.getElementById("viewState"),
+  timerState: document.getElementById("timerState"),
+  progressState: document.getElementById("progressState"),
+  missionState: document.getElementById("missionState"),
   healthBar: document.getElementById("healthBar"),
   fearBar: document.getElementById("fearBar"),
-  staminaBar: document.getElementById("staminaBar")
+  staminaBar: document.getElementById("staminaBar"),
+  overlay: document.getElementById("missionOverlay"),
+  overlayTitle: document.getElementById("overlayTitle"),
+  overlayText: document.getElementById("overlayText")
 };
 
 hud.modelState.textContent = chase.modelLabel ?? (chase.isFallback ? "Starter Rig" : "Custom Model");
@@ -34,7 +40,11 @@ const state = {
   health: 100,
   fear: 8,
   stamina: 100,
-  reviewMode: true
+  reviewMode: false,
+  missionDuration: 90,
+  timeLeft: 90,
+  missionComplete: false,
+  missionFailed: false
 };
 
 const input = {
@@ -63,12 +73,56 @@ function currentObjective() {
   return missionRoute[state.objectiveIndex];
 }
 
+function missionProgress() {
+  return Math.min(state.objectiveIndex, missionRoute.length);
+}
+
+function setOverlay(title, text) {
+  hud.overlayTitle.textContent = title;
+  hud.overlayText.textContent = text;
+  hud.overlay.classList.remove("hidden");
+}
+
+function hideOverlay() {
+  hud.overlay.classList.add("hidden");
+}
+
+function completeMission() {
+  if (state.missionComplete) return;
+  state.missionComplete = true;
+  setOverlay(
+    "Halloween Run Complete",
+    "Chase hit all three checkpoints. Press R to restart the mission and tighten the route."
+  );
+}
+
+function failMission() {
+  if (state.missionFailed) return;
+  state.missionFailed = true;
+  setOverlay(
+    "Night's Over",
+    "The block got away from Chase this round. Press R to reset and beat the timer."
+  );
+}
+
 function refreshHUD() {
   const objective = currentObjective();
-  hud.objectiveTitle.textContent = `Reach ${objective.name}`;
-  hud.objectiveHint.textContent = "Use this build to lock in Chase's face, curls, hoodie silhouette, and proportions first. The gameplay shell can be tuned after the character reads right.";
-  hud.markerState.textContent = objective.name;
+  if (state.missionComplete) {
+    hud.objectiveTitle.textContent = "Mission Complete";
+    hud.objectiveHint.textContent = "Chase made all three Halloween stops. Press R to run it again and tighten the route.";
+  } else if (state.missionFailed) {
+    hud.objectiveTitle.textContent = "Retry The Route";
+    hud.objectiveHint.textContent = "The timer ran out. Press R to reset Chase and take the block again.";
+  } else if (objective) {
+    hud.objectiveTitle.textContent = `Reach ${objective.name}`;
+    hud.objectiveHint.textContent = "Sprint through three Halloween checkpoints before the timer expires, and avoid clipping the street junk on the way.";
+  }
+
+  hud.markerState.textContent = objective?.name ?? "Route Cleared";
   hud.viewState.textContent = state.reviewMode ? "Character Review" : "Third Person";
+  hud.timerState.textContent = `${Math.max(0, Math.ceil(state.timeLeft))}s`;
+  hud.progressState.textContent = `${missionProgress()} / ${missionRoute.length}`;
+  hud.missionState.textContent = state.missionComplete ? "Won" : state.missionFailed ? "Failed" : "Live";
   hud.healthBar.style.width = `${state.health}%`;
   hud.fearBar.style.width = `${state.fear}%`;
   hud.staminaBar.style.width = `${state.stamina}%`;
@@ -77,15 +131,21 @@ function refreshHUD() {
 function resetChase() {
   chase.group.position.copy(spawn);
   chase.group.rotation.y = Math.PI;
-  if (state.reviewMode) setReviewOrbitDefaults();
+  state.reviewMode = false;
   state.objectiveIndex = 0;
   state.health = 100;
   state.fear = 8;
   state.stamina = 100;
+  state.timeLeft = state.missionDuration;
+  state.missionComplete = false;
+  state.missionFailed = false;
+  hideOverlay();
   refreshHUD();
 }
 
 function applyMovement(dt) {
+  if (state.missionComplete || state.missionFailed) return;
+
   const basisForward = new THREE.Vector3(Math.sin(input.yaw), 0, Math.cos(input.yaw)).normalize();
   const basisRight = new THREE.Vector3(basisForward.z, 0, -basisForward.x).normalize();
   move.set(0, 0, 0);
@@ -119,7 +179,36 @@ function applyMovement(dt) {
 
   const objective = currentObjective();
   if (objective && chase.group.position.distanceTo(objective.position) < 2.8) {
-    state.objectiveIndex = Math.min(missionRoute.length - 1, state.objectiveIndex + 1);
+    state.objectiveIndex += 1;
+    if (state.objectiveIndex >= missionRoute.length) {
+      completeMission();
+    }
+  }
+}
+
+function updateMissionTimer(dt) {
+  if (state.reviewMode || state.missionComplete || state.missionFailed) return;
+  state.timeLeft = Math.max(0, state.timeLeft - dt);
+  if (state.timeLeft <= 0) failMission();
+}
+
+function updateBlockers(dt) {
+  if (state.reviewMode || state.missionComplete || state.missionFailed) return;
+
+  for (const blocker of world.blockers) {
+    const delta = chase.group.position.clone().sub(blocker.group.position);
+    const planarDistance = Math.hypot(delta.x, delta.z);
+    const collisionRadius = blocker.radius + 0.95;
+
+    if (planarDistance > 0.001 && planarDistance < collisionRadius) {
+      const pushStrength = (collisionRadius - planarDistance) * 2.4;
+      delta.y = 0;
+      delta.normalize();
+      chase.group.position.addScaledVector(delta, pushStrength * dt);
+      state.health = Math.max(0, state.health - dt * 12);
+      state.stamina = Math.max(0, state.stamina - dt * 22);
+      state.fear = Math.min(100, state.fear + dt * 18);
+    }
   }
 }
 
@@ -159,7 +248,9 @@ function updateCamera(dt) {
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.033);
+  updateMissionTimer(dt);
   applyMovement(dt);
+  updateBlockers(dt);
   updateMarkers(dt);
   updateCamera(dt);
   refreshHUD();
@@ -183,7 +274,20 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyR") resetChase();
   if (event.code === "KeyF") {
     state.reviewMode = !state.reviewMode;
-    if (state.reviewMode) setReviewOrbitDefaults();
+    if (state.reviewMode) {
+      setReviewOrbitDefaults();
+      hideOverlay();
+    } else if (state.missionComplete) {
+      setOverlay(
+        "Halloween Run Complete",
+        "Chase hit all three checkpoints. Press R to restart the mission and tighten the route."
+      );
+    } else if (state.missionFailed) {
+      setOverlay(
+        "Night's Over",
+        "The block got away from Chase this round. Press R to reset and beat the timer."
+      );
+    }
   }
 });
 
