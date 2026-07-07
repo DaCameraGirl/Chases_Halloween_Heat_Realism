@@ -578,6 +578,34 @@ function spawnExplosion(pos) {
   }
 }
 
+function triggerCauldronBurst(pos) {
+  const count = 48;
+  const colors = [0x76ff03, 0xaa00ff, 0xffa500]; // Neon green, warlock purple, witch orange
+  for (let i = 0; i < count; i++) {
+    const geom = new THREE.SphereGeometry(0.14 + Math.random() * 0.22, 6, 6);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
+    const mesh = new THREE.Mesh(geom, mat);
+    
+    mesh.position.copy(pos);
+    mesh.position.x += (Math.random() - 0.5) * 0.8;
+    mesh.position.z += (Math.random() - 0.5) * 0.8;
+    scene.add(mesh);
+
+    const vel = new THREE.Vector3(
+      (Math.random() - 0.5) * 3.5,
+      1.8 + Math.random() * 2.8,
+      (Math.random() - 0.5) * 3.5
+    );
+
+    activeParticles.push({
+      mesh,
+      velocity: vel,
+      life: 0.9 + Math.random() * 0.6
+    });
+  }
+}
+
 function spawnFootstepParticle(pos, sprinting) {
   const geom = new THREE.BoxGeometry(0.08, 0.03, 0.08);
   const color = Math.random() > 0.5 ? 0xcc6633 : 0xaa5522; // Autumn leaves colors
@@ -965,6 +993,9 @@ function interactWithZone(zone) {
     }
     
     state.candy -= 1;
+    if (world.cauldronPos) {
+      triggerCauldronBurst(world.cauldronPos);
+    }
     // Brew sound effects (bubble and splash)
     playTone(220, 780, 0.4, "triangle", 0.4);
     setTimeout(() => playTone(640, 180, 0.22, "sawtooth", 0.25), 100);

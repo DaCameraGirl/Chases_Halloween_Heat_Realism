@@ -561,35 +561,73 @@ export function createWorld(scene) {
           group.add(bombProp);
         }
       } else if (config.sign === "Candy Mutation") {
-        // Giant smoking black cauldron witches pot!
-        const cauldron = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.8, 1.0, 1.0, 16),
-          new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.85 })
+        // Hansel & Gretel Gingerbread gumdrop studs on the front wall
+        for (let i = -2; i <= 2; i++) {
+          const colors = [0xff3b30, 0xffcc00, 0x007aff, 0xff2d55, 0x34c759];
+          const gumdrop = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 8, 8),
+            new THREE.MeshStandardMaterial({ color: colors[(i + 2) % 5], roughness: 0.3 })
+          );
+          gumdrop.position.set(i * 1.2, config.h * 0.88, config.d / 2 + 0.05);
+          group.add(gumdrop);
+        }
+
+        // White icing piping lines on the facade sides
+        const icingL = new THREE.Mesh(
+          new THREE.BoxGeometry(0.15, config.h * 0.7, 0.06),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 })
         );
-        cauldron.position.set(0, 0.5, -config.d * 0.1);
+        icingL.position.set(-config.w / 2 + 0.2, config.h * 0.35, config.d / 2 + 0.02);
+        group.add(icingL);
+
+        const icingR = icingL.clone();
+        icingR.position.x = config.w / 2 - 0.2;
+        group.add(icingR);
+
+        // BIG Witches Cauldron Pot!
+        const cauldron = new THREE.Mesh(
+          new THREE.CylinderGeometry(1.0, 1.25, 1.1, 16),
+          new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 })
+        );
+        cauldron.position.set(0, 0.55, -config.d * 0.15);
         group.add(cauldron);
 
+        // Angled cauldron warlock legs
+        for (let i = 0; i < 3; i++) {
+          const leg = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8),
+            new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.9 })
+          );
+          const angle = (i / 3) * Math.PI * 2;
+          leg.position.set(Math.cos(angle) * 1.1, 0.2, -config.d * 0.15 + Math.sin(angle) * 1.1);
+          leg.rotation.z = Math.cos(angle) * 0.3;
+          leg.rotation.x = Math.sin(angle) * 0.3;
+          group.add(leg);
+        }
+
+        // Cauldron Rim
         const rim = new THREE.Mesh(
-          new THREE.TorusGeometry(0.8, 0.08, 8, 24),
-          new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.85 })
+          new THREE.TorusGeometry(1.0, 0.1, 8, 24),
+          new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 })
         );
         rim.rotation.x = Math.PI / 2;
-        rim.position.set(0, 1.0, -config.d * 0.1);
+        rim.position.set(0, 1.1, -config.d * 0.15);
         group.add(rim);
 
+        // Bubbling Cauldron liquid (larger radius)
         const liquid = new THREE.Mesh(
-          new THREE.CircleGeometry(0.76, 16),
+          new THREE.CircleGeometry(0.96, 16),
           new THREE.MeshBasicMaterial({ color: 0x39ff14 })
         );
         liquid.rotation.x = -Math.PI / 2;
-        liquid.position.set(0, 0.95, -config.d * 0.1);
+        liquid.position.set(0, 1.05, -config.d * 0.15);
         group.add(liquid);
 
-        const potionGlow = new THREE.PointLight(0x55ff00, 3.5, 8, 1.5);
-        potionGlow.position.set(0, 1.2, -config.d * 0.1);
+        const potionGlow = new THREE.PointLight(0x55ff00, 3.8, 10, 1.5);
+        potionGlow.position.set(0, 1.3, -config.d * 0.15);
         group.add(potionGlow);
 
-        world.cauldronPos = new THREE.Vector3(config.x, 0.95, config.z - config.d * 0.1);
+        world.cauldronPos = new THREE.Vector3(config.x, 1.05, config.z - config.d * 0.15);
       } else if (config.sign === "Hex Market") {
         // Ward shop: draw a glowing green ward sigil
         const sigil = new THREE.Mesh(
@@ -778,7 +816,15 @@ export function createWorld(scene) {
   // Extra decorative houses
   createHouse({ x: 11, z: -32, w: 7.2, h: 4, d: 6.1, color: 0x403240, roof: 0x16090b, window: 0xffcf7b });
   createHouse({ x: -32, z: 11, w: 6.8, h: 3.8, d: 6, color: 0x253344, roof: 0x14070a, window: 0xffdf8a });
-  createHouse({ x: 31, z: 12, w: 8.2, h: 4.5, d: 7.2, color: 0x22112e, roof: 0x09050d, window: 0xaaff22, sign: "Candy Mutation", signAccent: "#76ff03", enterable: true });
+  createHouse({ x: 31, z: 12, w: 8.2, h: 4.5, d: 7.2, color: 0x784421, roof: 0x301508, window: 0xff44aa, sign: "Candy Mutation", signAccent: "#76ff03", enterable: true });
+
+  // Hansel & Gretel Spooky Woods surrounding the cottage
+  createTree(25, 14, 1.1);
+  createTree(37, 14, 1.25);
+  createTree(24, 7, 0.95);
+  createTree(38, 7, 1.05);
+  createTree(34, 17, 1.2);
+  createTree(28, 17, 1.15);
 
   // TREES
   function createTree(x, z, scale = 1) {
