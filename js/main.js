@@ -34,16 +34,18 @@ const hud = {
   eggValue: document.getElementById("eggValue"),
   promptCard: document.getElementById("promptCard"),
   promptText: document.getElementById("promptText"),
-  overlay: document.getElementById("screenOverlay"),
+  overlay: document.getElementById("screenOverlay") || document.getElementById("missionOverlay"),
   overlayEyebrow: document.getElementById("overlayEyebrow"),
   overlayTitle: document.getElementById("overlayTitle"),
-  overlayDesc: document.getElementById("overlayDesc"),
-  restartBtn: document.getElementById("restartBtn"),
+  overlayDesc: document.getElementById("overlayDesc") || document.getElementById("overlayText"),
+  restartBtn: document.getElementById("restartBtn") || document.getElementById("restartWin"),
   vignette: document.getElementById("vignette"),
   flash: document.getElementById("flash")
 };
 
-hud.modelState.textContent = chase.modelLabel ?? (chase.isFallback ? "Starter Rig" : "Custom Model");
+if (hud.modelState) {
+  hud.modelState.textContent = chase.modelLabel ?? (chase.isFallback ? "Starter Rig" : "Custom Model");
+}
 
 const state = {
   health: 100,
@@ -196,14 +198,14 @@ function missionProgress() {
 }
 
 function setOverlay(eyebrow, title, desc) {
-  hud.overlayEyebrow.textContent = eyebrow;
-  hud.overlayTitle.textContent = title;
-  hud.overlayDesc.textContent = desc;
-  hud.overlay.classList.remove("hidden");
+  if (hud.overlayEyebrow) hud.overlayEyebrow.textContent = eyebrow;
+  if (hud.overlayTitle) hud.overlayTitle.textContent = title;
+  if (hud.overlayDesc) hud.overlayDesc.textContent = desc;
+  if (hud.overlay) hud.overlay.classList.remove("hidden");
 }
 
 function hideOverlay() {
-  hud.overlay.classList.add("hidden");
+  if (hud.overlay) hud.overlay.classList.add("hidden");
 }
 
 function completeMission() {
@@ -232,47 +234,58 @@ function failMission(reason = "The timer ran out.") {
 
 function refreshHUD() {
   const objective = currentObjective();
-  if (state.missionComplete) {
-    hud.objectiveTitle.textContent = "Mission Complete";
-    hud.objectiveHint.textContent = "Chase made all five Halloween stops. Press R to run the route again.";
-  } else if (state.missionFailed) {
-    hud.objectiveTitle.textContent = "Retry The Route";
-    hud.objectiveHint.textContent = "You failed the block errand. Press R to reset Chase and retake the block.";
-  } else if (objective) {
-    hud.objectiveTitle.textContent = `Reach ${objective.name}`;
-    if (state.objectiveIndex === 0) {
-      hud.objectiveHint.textContent = "Sneak to Costume Crypt and put on your Halloween fit to start the route.";
-    } else if (state.objectiveIndex === 1) {
-      hud.objectiveHint.textContent = "Break into Hearse Garage and hotwire the hearse keys.";
-    } else if (state.objectiveIndex === 2) {
-      hud.objectiveHint.textContent = "Head to Hex Market and extract the ancient ward protection sigil.";
-    } else if (state.objectiveIndex === 3) {
-      hud.objectiveHint.textContent = "Go to the street center and light the Ritual Beacon before No-Face blocks you.";
-    } else {
-      hud.objectiveHint.textContent = "Escape back to the Safehouse! No-Face is fully raged and hunting.";
+  if (hud.objectiveTitle) {
+    if (state.missionComplete) {
+      hud.objectiveTitle.textContent = "Mission Complete";
+    } else if (state.missionFailed) {
+      hud.objectiveTitle.textContent = "Retry The Route";
+    } else if (objective) {
+      hud.objectiveTitle.textContent = `Reach ${objective.name}`;
+    }
+  }
+  
+  if (hud.objectiveHint) {
+    if (state.missionComplete) {
+      hud.objectiveHint.textContent = "Chase made all five stops. Press R to run it again.";
+    } else if (state.missionFailed) {
+      hud.objectiveHint.textContent = "You failed the block errand. Press R to reset Chase and retake the block.";
+    } else if (objective) {
+      if (state.objectiveIndex === 0) {
+        hud.objectiveHint.textContent = "Sneak to Costume Crypt and put on your Halloween fit to start the route.";
+      } else if (state.objectiveIndex === 1) {
+        hud.objectiveHint.textContent = "Break into Hearse Garage and hotwire the hearse keys.";
+      } else if (state.objectiveIndex === 2) {
+        hud.objectiveHint.textContent = "Head to Hex Market and extract the ancient ward protection sigil.";
+      } else if (state.objectiveIndex === 3) {
+        hud.objectiveHint.textContent = "Go to the street center and light the Ritual Beacon before No-Face blocks you.";
+      } else {
+        hud.objectiveHint.textContent = "Escape back to the Safehouse! No-Face is fully raged and hunting.";
+      }
     }
   }
 
-  hud.markerState.textContent = objective?.name ?? "Route Cleared";
-  hud.viewState.textContent = state.reviewMode ? "Character Review" : "Third Person";
-  hud.timerState.textContent = `${Math.max(0, Math.ceil(state.timeLeft))}s`;
-  hud.progressState.textContent = `${missionProgress()} / ${missionRoute.length}`;
-  hud.missionState.textContent = state.missionComplete ? "Won" : state.missionFailed ? "Failed" : "Live";
+  if (hud.markerState) hud.markerState.textContent = objective?.name ?? "Route Cleared";
+  if (hud.viewState) hud.viewState.textContent = state.reviewMode ? "Character Review" : "Third Person";
+  if (hud.timerState) hud.timerState.textContent = `${Math.max(0, Math.ceil(state.timeLeft))}s`;
+  if (hud.progressState) hud.progressState.textContent = `${missionProgress()} / ${missionRoute.length}`;
+  if (hud.missionState) hud.missionState.textContent = state.missionComplete ? "Won" : state.missionFailed ? "Failed" : "Live";
   
-  hud.healthBar.style.width = `${state.health}%`;
-  hud.fearBar.style.width = `${state.fear}%`;
-  hud.staminaBar.style.width = `${state.stamina}%`;
+  if (hud.healthBar) hud.healthBar.style.width = `${state.health}%`;
+  if (hud.fearBar) hud.fearBar.style.width = `${state.fear}%`;
+  if (hud.staminaBar) hud.staminaBar.style.width = `${state.stamina}%`;
 
-  hud.cashValue.textContent = `$${state.cash}`;
-  hud.candyValue.textContent = `${state.candy} / 6`;
-  hud.eggValue.textContent = `${state.eggs}`;
+  if (hud.cashValue) hud.cashValue.textContent = `$${state.cash}`;
+  if (hud.candyValue) hud.candyValue.textContent = `${state.candy} / 6`;
+  if (hud.eggValue) hud.eggValue.textContent = `${state.eggs}`;
 
   // Fear & health vignette check
-  const distToEnemy = chase.group.position.distanceTo(noFace.group.position);
-  if (state.health < 35 || state.fear > 70 || (distToEnemy < 7 && !state.ended)) {
-    hud.vignette.className = "danger";
-  } else {
-    hud.vignette.className = "";
+  const distToEnemy = noFace ? chase.group.position.distanceTo(noFace.group.position) : 999;
+  if (hud.vignette) {
+    if (state.health < 35 || state.fear > 70 || (distToEnemy < 7 && !state.ended)) {
+      hud.vignette.className = "danger";
+    } else {
+      hud.vignette.className = "";
+    }
   }
 }
 
@@ -300,8 +313,9 @@ function resetGame() {
   chase.group.rotation.y = Math.PI;
   applyChaseCostume(chase, 0);
 
-  // Position No-Face far away
-  noFace.group.position.set(30, 0, -25);
+  if (noFace) {
+    noFace.group.position.set(30, 0, -25);
+  }
 
   // Reset stashes
   world.candies.forEach(candy => {
@@ -383,7 +397,7 @@ function updatePhysics(dt) {
     bomb.velocity.y -= 9.8 * dt;
     bomb.position.addScaledVector(bomb.velocity, dt);
 
-    const distToNoFace = bomb.position.distanceTo(noFace.group.position);
+    const distToNoFace = noFace ? bomb.position.distanceTo(noFace.group.position) : 999;
     if (bomb.position.y <= 0.05 || distToNoFace < 1.8) {
       spawnExplosion(bomb.position);
       scene.remove(bomb.mesh);
@@ -526,7 +540,7 @@ function updateEnvironmentAndFear(dt) {
   }
 
   // 2. Adjust fear
-  const distToEnemy = chase.group.position.distanceTo(noFace.group.position);
+  const distToEnemy = noFace ? chase.group.position.distanceTo(noFace.group.position) : 999;
   if (distToEnemy < 7.5) {
     state.fear = Math.min(100, state.fear + dt * 15);
   } else if (inLight) {
@@ -559,13 +573,13 @@ function updateEnvironmentAndFear(dt) {
 // PROMPT OVERLAYS & STATE CHECKPOINT ACTIONS
 function updateInteractionPrompt() {
   if (state.ended || state.reviewMode) {
-    hud.promptCard.classList.remove("show");
+    if (hud.promptCard) hud.promptCard.classList.remove("show");
     return;
   }
 
-  const objective = currentObjective();
+  const objective = getObjective();
   if (!objective) {
-    hud.promptCard.classList.remove("show");
+    if (hud.promptCard) hud.promptCard.classList.remove("show");
     return;
   }
 
@@ -578,17 +592,17 @@ function updateInteractionPrompt() {
     else if (state.objectiveIndex === 3) msg = "[E] Light Beacon";
     else msg = "[E] Enter Safehouse";
 
-    hud.promptText.textContent = msg;
-    hud.promptCard.classList.add("show");
+    if (hud.promptText) hud.promptText.textContent = msg;
+    if (hud.promptCard) hud.promptCard.classList.add("show");
   } else {
-    hud.promptCard.classList.remove("show");
+    if (hud.promptCard) hud.promptCard.classList.remove("show");
   }
 }
 
 function triggerInteraction() {
   if (state.ended || state.reviewMode) return;
 
-  const objective = currentObjective();
+  const objective = getObjective();
   if (!objective) return;
 
   const dist = chase.group.position.distanceTo(objective.position);
@@ -610,7 +624,6 @@ function triggerInteraction() {
     state.story.beacon = true;
     soundUpgrade();
   } else if (state.objectiveIndex === 4) {
-    // Escaped back to safehouse
     completeMission();
     return;
   }
@@ -620,16 +633,19 @@ function triggerInteraction() {
   if (state.objectiveIndex >= missionRoute.length) {
     completeMission();
   } else {
-    // Checkpoint bonus time
     state.timeLeft = Math.min(120, state.timeLeft + 30);
   }
 
   refreshHUD();
 }
 
+function getObjective() {
+  return missionRoute[state.objectiveIndex];
+}
+
 // NO-FACE AI LOOP
 function updateNoFaceAI(dt) {
-  if (state.ended || state.reviewMode) return;
+  if (state.ended || state.reviewMode || !noFace) return;
 
   if (state.noFaceStunTimer > 0) {
     state.noFaceStunTimer -= dt;
@@ -644,7 +660,6 @@ function updateNoFaceAI(dt) {
 
   if (dist > 0.01) {
     targetDir.normalize();
-    // No-Face speeds up once beacon is activated (Objective 4 -> 5)
     const stalkSpeed = (state.objectiveIndex >= 4) ? 4.8 : 3.1;
     noFace.group.position.addScaledVector(targetDir, stalkSpeed * dt);
     noFace.group.rotation.y = Math.atan2(targetDir.x, targetDir.z);
@@ -669,13 +684,13 @@ function updateNoFaceAI(dt) {
 
 // RENDER & ENVIRONMENT LOOP
 function triggerLightning() {
-  hud.flash.style.background = "rgba(198, 227, 255, 0.45)";
+  if (hud.flash) hud.flash.style.background = "rgba(198, 227, 255, 0.45)";
   scene.background.set(0x354b6b);
   scene.fog.color.set(0x283b54);
   soundThunder();
 
   setTimeout(() => {
-    hud.flash.style.background = "rgba(198, 227, 255, 0)";
+    if (hud.flash) hud.flash.style.background = "rgba(198, 227, 255, 0)";
     scene.background.set(0x070b13);
     scene.fog.color.set(0x0b1220);
   }, 120);
@@ -689,7 +704,6 @@ function updateCamera(dt) {
   const radius = state.reviewMode ? 4.7 : 11.5;
   const verticalSwing = state.reviewMode ? 1.8 : 1.6;
 
-  // Add panic camera shaking if fear is high
   const shake = (!state.ended && state.fear > 65) ? (state.fear / 100) * 0.15 : 0;
   const shakeVec = new THREE.Vector3(
     (Math.random() - 0.5) * shake,
@@ -722,8 +736,7 @@ function tick() {
   updateRain(dt);
   updateInteractionPrompt();
 
-  // Markers spinning animations
-  const currentObj = currentObjective();
+  const currentObj = getObjective();
   const reviewHidden = state.reviewMode;
   world.markers.forEach((marker, index) => {
     const active = marker === currentObj;
@@ -737,7 +750,6 @@ function tick() {
     marker.group.position.y = active ? Math.sin(clock.elapsedTime * 2.4) * 0.15 : 0;
   });
 
-  // Weather lightning loop
   state.lightningTimer -= dt;
   if (state.lightningTimer <= 0) {
     triggerLightning();
@@ -838,9 +850,11 @@ window.addEventListener("pointerup", () => {
 
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-hud.restartBtn.addEventListener("click", () => {
-  resetGame();
-});
+if (hud.restartBtn) {
+  hud.restartBtn.addEventListener("click", () => {
+    resetGame();
+  });
+}
 
 // INITIAL RUN
 resetGame();
