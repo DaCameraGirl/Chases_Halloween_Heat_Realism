@@ -65,56 +65,140 @@ function createBadgeTexture(text, options = {}) {
   });
 }
 
-// Procedural texture for carved Jack-o'-lantern skin
-function createJackOLanternTexture() {
+// Procedural textures for 4 different carved Jack-o'-lantern face designs
+function createJackOLanternTexture(designIndex) {
   return createCanvasTexture(256, 128, (ctx, w, h) => {
+    // Orange skin background
     ctx.fillStyle = "#d76618";
     ctx.fillRect(0, 0, w, h);
     
+    // Glowing paint
     ctx.fillStyle = "#ffe045";
     ctx.shadowBlur = 8;
     ctx.shadowColor = "#ff7700";
     
-    // Left eye (triangle)
-    ctx.beginPath();
-    ctx.moveTo(w * 0.28, h * 0.36);
-    ctx.lineTo(w * 0.40, h * 0.36);
-    ctx.lineTo(w * 0.34, h * 0.22);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Right eye (triangle)
-    ctx.beginPath();
-    ctx.moveTo(w * 0.60, h * 0.36);
-    ctx.lineTo(w * 0.72, h * 0.36);
-    ctx.lineTo(w * 0.66, h * 0.22);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Nose (triangle)
-    ctx.beginPath();
-    ctx.moveTo(w * 0.46, h * 0.52);
-    ctx.lineTo(w * 0.54, h * 0.52);
-    ctx.lineTo(w * 0.50, h * 0.44);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Jagged mouth
-    ctx.beginPath();
-    ctx.moveTo(w * 0.22, h * 0.65);
-    ctx.lineTo(w * 0.32, h * 0.78);
-    ctx.lineTo(w * 0.40, h * 0.70);
-    ctx.lineTo(w * 0.50, h * 0.82);
-    ctx.lineTo(w * 0.60, h * 0.70);
-    ctx.lineTo(w * 0.68, h * 0.78);
-    ctx.lineTo(w * 0.78, h * 0.65);
-    ctx.lineTo(w * 0.70, h * 0.69);
-    ctx.lineTo(w * 0.60, h * 0.60);
-    ctx.lineTo(w * 0.50, h * 0.71);
-    ctx.lineTo(w * 0.40, h * 0.60);
-    ctx.lineTo(w * 0.30, h * 0.69);
-    ctx.closePath();
-    ctx.fill();
+    if (designIndex === 0) {
+      // 1. Classic Spooky Face
+      // Left eye
+      ctx.beginPath();
+      ctx.moveTo(w * 0.28, h * 0.36);
+      ctx.lineTo(w * 0.40, h * 0.36);
+      ctx.lineTo(w * 0.34, h * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Right eye
+      ctx.beginPath();
+      ctx.moveTo(w * 0.60, h * 0.36);
+      ctx.lineTo(w * 0.72, h * 0.36);
+      ctx.lineTo(w * 0.66, h * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Nose
+      ctx.beginPath();
+      ctx.moveTo(w * 0.46, h * 0.52);
+      ctx.lineTo(w * 0.54, h * 0.52);
+      ctx.lineTo(w * 0.50, h * 0.44);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Jagged mouth
+      ctx.beginPath();
+      ctx.moveTo(w * 0.22, h * 0.65);
+      ctx.lineTo(w * 0.32, h * 0.78);
+      ctx.lineTo(w * 0.40, h * 0.70);
+      ctx.lineTo(w * 0.50, h * 0.82);
+      ctx.lineTo(w * 0.60, h * 0.70);
+      ctx.lineTo(w * 0.68, h * 0.78);
+      ctx.lineTo(w * 0.78, h * 0.65);
+      ctx.lineTo(w * 0.70, h * 0.69);
+      ctx.lineTo(w * 0.60, h * 0.60);
+      ctx.lineTo(w * 0.50, h * 0.71);
+      ctx.lineTo(w * 0.40, h * 0.60);
+      ctx.lineTo(w * 0.30, h * 0.69);
+      ctx.closePath();
+      ctx.fill();
+    } else if (designIndex === 1) {
+      // 2. Cute / Happy Smile
+      // Left eye (circle)
+      ctx.beginPath();
+      ctx.arc(w * 0.35, h * 0.30, 9, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Right eye (circle)
+      ctx.beginPath();
+      ctx.arc(w * 0.65, h * 0.30, 9, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Nose (tiny circle)
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.48, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Smile with teeth
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.58, 20, 0, Math.PI);
+      ctx.fill();
+    } else if (designIndex === 2) {
+      // 3. Angry / Scary Face
+      // Left eye (slant)
+      ctx.beginPath();
+      ctx.moveTo(w * 0.24, h * 0.22);
+      ctx.lineTo(w * 0.40, h * 0.34);
+      ctx.lineTo(w * 0.28, h * 0.37);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Right eye (slant)
+      ctx.beginPath();
+      ctx.moveTo(w * 0.76, h * 0.22);
+      ctx.lineTo(w * 0.60, h * 0.34);
+      ctx.lineTo(w * 0.72, h * 0.37);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Nose
+      ctx.beginPath();
+      ctx.moveTo(w * 0.46, h * 0.46);
+      ctx.lineTo(w * 0.54, h * 0.46);
+      ctx.lineTo(w * 0.50, h * 0.56);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Scary mouth with fangs
+      ctx.beginPath();
+      ctx.moveTo(w * 0.20, h * 0.64);
+      ctx.lineTo(w * 0.32, h * 0.70);
+      ctx.lineTo(w * 0.35, h * 0.77); // fang L
+      ctx.lineTo(w * 0.38, h * 0.70);
+      ctx.lineTo(w * 0.50, h * 0.74);
+      ctx.lineTo(w * 0.62, h * 0.70);
+      ctx.lineTo(w * 0.65, h * 0.77); // fang R
+      ctx.lineTo(w * 0.68, h * 0.70);
+      ctx.lineTo(w * 0.80, h * 0.64);
+      ctx.lineTo(w * 0.68, h * 0.83);
+      ctx.lineTo(w * 0.50, h * 0.86);
+      ctx.lineTo(w * 0.32, h * 0.83);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // 4. Shocked / Ghost Face
+      // Left eye (oval)
+      ctx.beginPath();
+      ctx.ellipse(w * 0.33, h * 0.30, 8, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Right eye (oval)
+      ctx.beginPath();
+      ctx.ellipse(w * 0.67, h * 0.30, 8, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Shocked mouth (big oval)
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.69, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
   });
 }
 
@@ -138,8 +222,13 @@ export function createWorld(scene) {
 
   const worldBounds = 48;
 
-  // Jack-o'-lantern skin texture shared asset
-  const jackOLanternTex = createJackOLanternTexture();
+  // Generate 4 distinct textures for variety
+  const jackOLanternTextures = [
+    createJackOLanternTexture(0),
+    createJackOLanternTexture(1),
+    createJackOLanternTexture(2),
+    createJackOLanternTexture(3)
+  ];
 
   // Ground Textures
   const asphaltTexture = createCanvasTexture(512, 512, (ctx, w, h) => {
@@ -609,22 +698,26 @@ export function createWorld(scene) {
     [-29, -25, 1.2], [31, -26, 1.1], [18, -28, 0.95], [-8, -37, 1.2], [2, 38, 1.1]
   ].forEach(([x, z, scale]) => createTree(x, z, scale));
 
-  // JACK-O'-LANTERNS (Carved Glowing Street Pumpkins)
-  function createJackOLantern(x, z, scale = 1) {
+  // JACK-O'-LANTERNS (Carved Glowing Street Pumpkins with 4 Face Variations!)
+  function createJackOLantern(x, z, index, scale = 1) {
     const group = new THREE.Group();
+    const designIndex = index % 4; // Cycles through 4 different designs
+    const targetTex = jackOLanternTextures[designIndex];
+
     const body = new THREE.Mesh(
       new THREE.SphereGeometry(0.56 * scale, 16, 16),
       new THREE.MeshStandardMaterial({
-        map: jackOLanternTex,
+        map: targetTex,
         roughness: 0.82,
         emissive: 0xff8b07,
-        emissiveMap: jackOLanternTex,
+        emissiveMap: targetTex,
         emissiveIntensity: 1.3
       })
     );
-    body.rotation.y = Math.random() * Math.PI * 2; // Random rotation
     body.scale.y = 0.82;
     body.position.y = 0.46 * scale;
+    // Orient the carved face towards the street center
+    body.rotation.y = Math.atan2(-x, -z) + (Math.random() - 0.5) * 0.5;
     group.add(body);
 
     const stem = new THREE.Mesh(
@@ -650,7 +743,7 @@ export function createWorld(scene) {
   for (let i = 0; i < 28; i++) {
     const angle = (i / 28) * Math.PI * 2;
     const radius = 12 + (i % 7) * 4.6;
-    createJackOLantern(Math.cos(angle) * radius, Math.sin(angle * 1.7) * 18, 0.85 + (i % 3) * 0.15);
+    createJackOLantern(Math.cos(angle) * radius, Math.sin(angle * 1.7) * 18, i, 0.85 + (i % 3) * 0.15);
   }
 
   // CARS WITH GLOWING HEADLIGHT BEAMS

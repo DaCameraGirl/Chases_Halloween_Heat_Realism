@@ -900,7 +900,7 @@ function interactWithZone(zone) {
       state.story.ward = true;
       state.upgrades.ward = true;
       state.mission = "beacon";
-      showToast("Ward sigil secured.");
+      showToast("Warm sigil secured.");
       setRadio("Hex Market is done. Now light the beacon and pray Chase can outrun what wakes up.");
       soundUpgrade();
       refreshHUD();
@@ -1166,7 +1166,7 @@ function tick() {
   renderer.render(scene, camera);
 }
 
-// EVENT LISTENERS
+// EVENT LISTENERS WITH ROBUST EVENT PREVENT PREVENTIONS
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -1178,34 +1178,49 @@ window.addEventListener("keydown", (event) => {
   startSpookyMusic();
   
   const key = event.key ? event.key.toLowerCase() : "";
-  if (event.code === "KeyW" || key === "w" || event.code === "ArrowUp" || key === "arrowup") {
+  const code = event.code;
+
+  if (code === "ArrowUp" || key === "arrowup" || key === "up" || code === "KeyW" || key === "w") {
+    event.preventDefault();
     input.forward = 1;
     input.keyboardWPressed = true;
   }
-  if (event.code === "KeyS" || key === "s" || event.code === "ArrowDown" || key === "arrowdown") {
+  if (code === "ArrowDown" || key === "arrowdown" || key === "down" || code === "KeyS" || key === "s") {
+    event.preventDefault();
     input.forward = -1;
   }
-  if (event.code === "KeyA" || key === "a" || event.code === "ArrowLeft" || key === "arrowleft") {
+  if (code === "ArrowLeft" || key === "arrowleft" || key === "left" || code === "KeyA" || key === "a") {
+    event.preventDefault();
     input.strafe = -1;
   }
-  if (event.code === "KeyD" || key === "d" || event.code === "ArrowRight" || key === "arrowright") {
+  if (code === "ArrowRight" || key === "arrowright" || key === "right" || code === "KeyD" || key === "d") {
+    event.preventDefault();
     input.strafe = 1;
   }
-  if (event.code === "KeyQ" || key === "q") input.turn = 1;
-  if (event.code === "KeyE" || key === "e") input.turn = -1;
-  if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
-  if (event.code === "KeyR" || key === "r") resetGame();
-  
-  if ((event.code === "KeyE" || key === "e") && input.forward === 0 && input.strafe === 0) {
-    triggerInteraction();
+  if (code === "KeyQ" || key === "q") {
+    event.preventDefault();
+    input.turn = 1;
   }
-
-  if (event.code === "Space" || key === " ") {
+  if (code === "KeyE" || key === "e") {
+    event.preventDefault();
+    // Only trigger interact if not moving, otherwise rotate
+    if (input.forward === 0 && input.strafe === 0) {
+      triggerInteraction();
+    } else {
+      input.turn = -1;
+    }
+  }
+  if (code === "ShiftLeft" || code === "ShiftRight" || key === "shift") {
+    input.sprint = true;
+  }
+  if (code === "KeyR" || key === "r") {
+    resetGame();
+  }
+  if (code === "Space" || key === " ") {
     event.preventDefault();
     throwCandyBomb();
   }
-
-  if (event.code === "KeyF" || key === "f") {
+  if (code === "KeyF" || key === "f") {
     state.reviewMode = !state.reviewMode;
     if (state.reviewMode) {
       setReviewOrbitDefaults();
@@ -1228,24 +1243,32 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("keyup", (event) => {
   const key = event.key ? event.key.toLowerCase() : "";
-  if (event.code === "KeyW" || key === "w" || event.code === "ArrowUp" || key === "arrowup") {
+  const code = event.code;
+
+  if (code === "ArrowUp" || key === "arrowup" || key === "up" || code === "KeyW" || key === "w") {
     input.keyboardWPressed = false;
     if (!input.leftMouseDown) {
       input.forward = 0;
     }
   }
-  if ((event.code === "KeyS" || key === "s" || event.code === "ArrowDown" || key === "arrowdown") && input.forward < 0) {
+  if ((code === "ArrowDown" || key === "arrowdown" || key === "down" || code === "KeyS" || key === "s") && input.forward < 0) {
     input.forward = 0;
   }
-  if ((event.code === "KeyA" || key === "a" || event.code === "ArrowLeft" || key === "arrowleft") && input.strafe < 0) {
+  if ((code === "ArrowLeft" || key === "arrowleft" || key === "left" || code === "KeyA" || key === "a") && input.strafe < 0) {
     input.strafe = 0;
   }
-  if ((event.code === "KeyD" || key === "d" || event.code === "ArrowRight" || key === "arrowright") && input.strafe > 0) {
+  if ((code === "ArrowRight" || key === "arrowright" || key === "right" || code === "KeyD" || key === "d") && input.strafe > 0) {
     input.strafe = 0;
   }
-  if ((event.code === "KeyQ" || key === "q") && input.turn > 0) input.turn = 0;
-  if ((event.code === "KeyE" || key === "e") && input.turn < 0) input.turn = 0;
-  if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = false;
+  if (code === "KeyQ" || key === "q") {
+    input.turn = 0;
+  }
+  if (code === "KeyE" || key === "e") {
+    input.turn = 0;
+  }
+  if (code === "ShiftLeft" || code === "ShiftRight" || key === "shift") {
+    input.sprint = false;
+  }
 });
 
 canvas.addEventListener("pointerdown", (event) => {
