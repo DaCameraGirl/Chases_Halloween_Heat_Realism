@@ -663,35 +663,6 @@ export function applyChaseCostume(chase, index) {
     if (chase.witchHat) chase.witchHat.visible = (style.maskType === "witch");
     if (chase.devilHorns) chase.devilHorns.visible = (style.maskType === "devil");
     if (chase.pumpkinMask) chase.pumpkinMask.visible = (style.maskType === "pumpkin");
-  } else {
-    // If it's the real GLB model, traverse the meshes and adjust their colors if their names match
-    chase.group.traverse((child) => {
-      if (child.isMesh) {
-        const nameLower = child.name.toLowerCase();
-        if (nameLower.includes("hoodie") || nameLower.includes("jacket") || nameLower.includes("body") || nameLower.includes("torso")) {
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(m => {
-                if (m.color) m.color.setHex(style.hoodieColor);
-              });
-            } else if (child.material.color) {
-              child.material.color.setHex(style.hoodieColor);
-            }
-          }
-        }
-        if (nameLower.includes("hair") || nameLower.includes("curl")) {
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(m => {
-                if (m.color) m.color.setHex(style.hairColor);
-              });
-            } else if (child.material.color) {
-              child.material.color.setHex(style.hairColor);
-            }
-          }
-        }
-      }
-    });
   }
 }
 

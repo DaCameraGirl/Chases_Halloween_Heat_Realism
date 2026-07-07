@@ -6,6 +6,23 @@
   <title>Chase's Halloween Heat: Realism Build</title>
   <meta name="description" content="Realism-first prototype for Chase's Halloween Heat.">
   <link rel="stylesheet" href="./css/styles.css">
+  <script>
+    // Global error listener to print exceptions directly on screen for easy debugging
+    window.addEventListener('error', function(e) {
+      const debug = document.getElementById('debugLog');
+      if (debug) {
+        debug.style.display = 'block';
+        debug.innerHTML += '<div>ERROR: ' + e.message + ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')</div>';
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      const debug = document.getElementById('debugLog');
+      if (debug) {
+        debug.style.display = 'block';
+        debug.innerHTML += '<div>PROMISE REJECTION: ' + e.reason + '</div>';
+      }
+    });
+  </script>
   <script type="importmap">
     {
       "imports": {
@@ -15,6 +32,11 @@
   </script>
 </head>
 <body>
+  <!-- Floating error log for debugging -->
+  <div id="debugLog" style="position: fixed; bottom: 20px; left: 20px; background: rgba(15, 5, 5, 0.92); color: #ff5e65; padding: 16px; font-family: 'Azeret Mono', monospace; font-size: 12px; line-height: 1.4; max-height: 200px; overflow-y: auto; z-index: 10000; border-radius: 12px; border: 2px solid #8c1424; width: 450px; display: none; pointer-events: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+    <strong style="display:block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; color: #ff9da2;">Console Exceptions:</strong>
+  </div>
+
   <canvas id="scene"></canvas>
 
   <div id="hud">
@@ -49,8 +71,13 @@
         <div><dt>Marker</dt><dd id="markerState">Costume Crypt</dd></div>
         <div><dt>View</dt><dd id="viewState">Character Review</dd></div>
         <div><dt>Timer</dt><dd id="timerState">90s</dd></div>
-        <div><dt>Progress</dt><dd id="progressState">0 / 3</dd></div>
+        <div><dt>Progress</dt><dd id="progressState">0 / 5</dd></div>
         <div><dt>Mission</dt><dd id="missionState">Live</dd></div>
+      </dl>
+      <dl class="stats-grid" style="margin-top: 10px;">
+        <div><dt>Cash</dt><dd id="cashValue">$0</dd></div>
+        <div><dt>Loot</dt><dd id="candyValue">0 / 6</dd></div>
+        <div><dt>Bombs</dt><dd id="eggValue">12</dd></div>
       </dl>
     </section>
 
@@ -59,24 +86,33 @@
       <ul>
         <li><code>WASD</code> move</li>
         <li><code>Shift</code> sprint</li>
-        <li><code>Left drag</code> or <code>Right drag</code> orbit camera</li>
-        <li><code>Q / E</code> turn Chase in place</li>
-        <li><code>F</code> toggle review / gameplay camera</li>
-        <li><code>R</code> reset Chase to spawn</li>
+        <li><code>E</code> interact with zones</li>
+        <li><code>Click / Space</code> throw candy bomb</li>
+        <li><code>Right drag</code> orbit camera</li>
+        <li><code>R</code> restart game</li>
       </ul>
     </section>
 
     <section class="panel pipeline">
-      <span class="eyebrow">Next Upgrade</span>
-      <p>The first real mission is now a three-stop Halloween errand run. We can keep tuning Chase's face later, but now the build has a real gameplay loop to grow from.</p>
+      <span class="eyebrow">Stalker Alert</span>
+      <p id="alertMsg">No-Face is hunting. Stay under the yellow streetlamp posts to keep your fear down, and throw candy bombs to stun him if he stalks you!</p>
     </section>
   </div>
 
-  <div id="missionOverlay" class="overlay hidden" aria-live="polite">
+  <div id="flash"></div>
+  <div id="vignette"></div>
+
+  <div id="promptCard">
+    <span id="promptKey">E</span>
+    <span id="promptText">Interact</span>
+  </div>
+
+  <div id="screenOverlay" class="hidden">
     <div class="overlay-card">
-      <span class="eyebrow">Mission Update</span>
-      <h2 id="overlayTitle">Halloween Run Complete</h2>
-      <p id="overlayText">Chase made the route. Press R to run it again or keep exploring the block.</p>
+      <span class="eyebrow" id="overlayEyebrow">Game Over</span>
+      <h2 id="overlayTitle">Chase Was Caught</h2>
+      <p id="overlayDesc">No-Face cornered Chase in the shadows of Covington block.</p>
+      <button id="restartBtn">Play Again</button>
     </div>
   </div>
 

@@ -452,6 +452,7 @@ function applyMovement(dt) {
     let collideZ = false;
 
     for (const solid of world.solids) {
+      if (solid.minX === undefined || solid.minZ === undefined) continue;
       if (targetX >= solid.minX && targetX <= solid.maxX &&
           chase.group.position.z >= solid.minZ && chase.group.position.z <= solid.maxZ) {
         collideX = true;
@@ -770,25 +771,27 @@ window.addEventListener("resize", () => {
 
 window.addEventListener("keydown", (event) => {
   ensureAudio();
-  if (event.code === "KeyW") input.forward = 1;
-  if (event.code === "KeyS") input.forward = -1;
-  if (event.code === "KeyA") input.strafe = -1;
-  if (event.code === "KeyD") input.strafe = 1;
-  if (event.code === "KeyQ") input.turn = 1;
-  if (event.code === "KeyE") input.turn = -1;
-  if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
-  if (event.code === "KeyR") resetGame();
   
-  if (event.code === "KeyE" && input.forward === 0 && input.strafe === 0) {
+  const key = event.key ? event.key.toLowerCase() : "";
+  if (event.code === "KeyW" || key === "w") input.forward = 1;
+  if (event.code === "KeyS" || key === "s") input.forward = -1;
+  if (event.code === "KeyA" || key === "a") input.strafe = -1;
+  if (event.code === "KeyD" || key === "d") input.strafe = 1;
+  if (event.code === "KeyQ" || key === "q") input.turn = 1;
+  if (event.code === "KeyE" || key === "e") input.turn = -1;
+  if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
+  if (event.code === "KeyR" || key === "r") resetGame();
+  
+  if ((event.code === "KeyE" || key === "e") && input.forward === 0 && input.strafe === 0) {
     triggerInteraction();
   }
 
-  if (event.code === "Space") {
+  if (event.code === "Space" || key === " ") {
     event.preventDefault();
     throwCandyBomb();
   }
 
-  if (event.code === "KeyF") {
+  if (event.code === "KeyF" || key === "f") {
     state.reviewMode = !state.reviewMode;
     if (state.reviewMode) {
       setReviewOrbitDefaults();
@@ -810,12 +813,13 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
-  if (event.code === "KeyW" && input.forward > 0) input.forward = 0;
-  if (event.code === "KeyS" && input.forward < 0) input.forward = 0;
-  if (event.code === "KeyA" && input.strafe < 0) input.strafe = 0;
-  if (event.code === "KeyD" && input.strafe > 0) input.strafe = 0;
-  if (event.code === "KeyQ" && input.turn > 0) input.turn = 0;
-  if (event.code === "KeyE" && input.turn < 0) input.turn = 0;
+  const key = event.key ? event.key.toLowerCase() : "";
+  if ((event.code === "KeyW" || key === "w") && input.forward > 0) input.forward = 0;
+  if ((event.code === "KeyS" || key === "s") && input.forward < 0) input.forward = 0;
+  if ((event.code === "KeyA" || key === "a") && input.strafe < 0) input.strafe = 0;
+  if ((event.code === "KeyD" || key === "d") && input.strafe > 0) input.strafe = 0;
+  if ((event.code === "KeyQ" || key === "q") && input.turn > 0) input.turn = 0;
+  if ((event.code === "KeyE" || key === "e") && input.turn < 0) input.turn = 0;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = false;
 });
 
