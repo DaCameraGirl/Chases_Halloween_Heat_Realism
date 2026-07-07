@@ -1223,7 +1223,10 @@ export function createWorld(scene) {
     group.add(mouth);
   }
 
-  function createCandy(x, z) {
+  const candyTypes = ["candyCorn", "chocolateSkull", "gummyWorm", "sourPumpkin"];
+
+  function createCandy(x, z, typeIndex) {
+    const type = candyTypes[typeIndex];
     const group = new THREE.Group();
     const glowRing = new THREE.Mesh(
       new THREE.TorusGeometry(0.56, 0.06, 10, 24),
@@ -1233,8 +1236,103 @@ export function createWorld(scene) {
     glowRing.position.y = 0.06;
     group.add(glowRing);
 
-    // Replaced box shapes with Pumpkin Bucket model!
-    createPumpkinBucket(group);
+    if (type === "candyCorn") {
+      // 1. Candy Corn Bucket
+      const cone = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.35, 0.7, 10),
+        new THREE.MeshStandardMaterial({ color: 0xffa500, roughness: 0.5 }) // Orange middle
+      );
+      cone.position.y = 0.35;
+      group.add(cone);
+
+      const topPart = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.16, 0.22, 10),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }) // White top
+      );
+      topPart.position.y = 0.59;
+      group.add(topPart);
+
+      const bottomPart = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.35, 0.24, 10),
+        new THREE.MeshStandardMaterial({ color: 0xffeb3b, roughness: 0.5 }) // Yellow bottom
+      );
+      bottomPart.position.y = 0.2;
+      group.add(bottomPart);
+
+      const handle = new THREE.Mesh(
+        new THREE.TorusGeometry(0.26, 0.03, 6, 18, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 })
+      );
+      handle.position.set(0, 0.6, 0);
+      handle.rotation.z = Math.PI;
+      group.add(handle);
+
+      glowRing.material.color.setHex(0xffea00);
+    } else if (type === "chocolateSkull") {
+      // 2. Chocolate Skull Bucket
+      const skull = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0x4e2714, roughness: 0.8 })
+      );
+      skull.position.y = 0.38;
+      group.add(skull);
+
+      const jaw = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.18, 0.22),
+        new THREE.MeshStandardMaterial({ color: 0x4e2714, roughness: 0.8 })
+      );
+      jaw.position.set(0, 0.16, 0.1);
+      group.add(jaw);
+
+      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+      eyeL.position.set(-0.09, 0.4, 0.25);
+      group.add(eyeL);
+
+      const eyeR = eyeL.clone();
+      eyeR.position.x = 0.09;
+      group.add(eyeR);
+
+      const handle = new THREE.Mesh(
+        new THREE.TorusGeometry(0.24, 0.03, 6, 18, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 })
+      );
+      handle.position.set(0, 0.65, 0);
+      handle.rotation.z = Math.PI;
+      group.add(handle);
+
+      glowRing.material.color.setHex(0xffaa66);
+    } else if (type === "gummyWorm") {
+      // 3. Gummy Worm Bucket
+      const worm = new THREE.Mesh(
+        new THREE.TorusGeometry(0.3, 0.09, 8, 24, Math.PI * 1.5),
+        new THREE.MeshStandardMaterial({ color: 0xe91e63, emissive: 0x5a0322, roughness: 0.2 })
+      );
+      worm.position.set(0, 0.35, 0);
+      worm.rotation.x = Math.PI / 3;
+      group.add(worm);
+
+      const worm2 = new THREE.Mesh(
+        new THREE.TorusGeometry(0.3, 0.09, 8, 24, Math.PI * 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x005533, roughness: 0.2 })
+      );
+      worm2.position.set(0.18, 0.35, 0.1);
+      worm2.rotation.y = Math.PI / 2;
+      group.add(worm2);
+
+      const handle = new THREE.Mesh(
+        new THREE.TorusGeometry(0.25, 0.03, 6, 18, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 })
+      );
+      handle.position.set(0, 0.65, 0);
+      handle.rotation.z = Math.PI;
+      group.add(handle);
+
+      glowRing.material.color.setHex(0x33ffcc);
+    } else {
+      // 4. Sour Pumpkin (standard pumpkin bucket)
+      createPumpkinBucket(group);
+      glowRing.material.color.setHex(0xff7700);
+    }
 
     const sparkle = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.08, 0),
@@ -1245,12 +1343,12 @@ export function createWorld(scene) {
 
     group.position.set(x, 0, z);
     scene.add(group);
-    world.candies.push({ group, x, z, phase: Math.random() * Math.PI * 2, collected: false, sparkle });
+    world.candies.push({ type, group, x, z, phase: Math.random() * Math.PI * 2, collected: false, sparkle });
   }
 
   [
     [-7, 3], [-12, 8], [8, 8], [16, 17], [24, -6], [-26, -10], [-17, -26], [3, -18], [18, -24], [-29, 22]
-  ].forEach(([x, z]) => createCandy(x, z));
+  ].forEach(([x, z], index) => createCandy(x, z, index % 4));
 
   // ATMOSPHERIC WIND LEAVES
   const leafGeom = new THREE.BoxGeometry(0.18, 0.02, 0.12);

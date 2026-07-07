@@ -93,6 +93,12 @@ const state = {
   missionFailed: false,
   cash: 0,
   candy: 0,
+  inventory: {
+    candyCorn: 0,
+    chocolateSkull: 0,
+    gummyWorm: 0,
+    sourPumpkin: 0
+  },
   eggs: 12,
   hits: 0,
   costumeIndex: 0,
@@ -480,6 +486,12 @@ function resetGame() {
   state.stamina = 100;
   state.cash = 0;
   state.candy = 0;
+  state.inventory = {
+    candyCorn: 0,
+    chocolateSkull: 0,
+    gummyWorm: 0,
+    sourPumpkin: 0
+  };
   state.eggs = 12;
   state.hits = 0;
   state.costumeIndex = 0;
@@ -804,12 +816,23 @@ function updateEnvironmentAndFear(dt) {
     if (distance < 1.65) {
       candy.collected = true;
       candy.group.visible = false;
-      state.candy = Math.min(6, state.candy + 1);
+      
+      const type = candy.type || "sourPumpkin";
+      state.inventory[type] = (state.inventory[type] || 0) + 1;
+      state.candy = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+      
       state.cash += 50;
       state.fear = Math.max(0, state.fear - 8);
       soundPickup();
-      showToast("+1 loot stash   +$50");
-      setRadio("Stash scooped: cash, snacks, and one more reason for No-Face to stay mad.");
+      
+      const friendlyNames = {
+        candyCorn: "Candy Corn",
+        chocolateSkull: "Chocolate Skull",
+        gummyWorm: "Gummy Worm",
+        sourPumpkin: "Sour Pumpkin"
+      };
+      showToast(`+1 ${friendlyNames[type]} Bucket!   +$50`);
+      setRadio(`Stash scooped: ${friendlyNames[type]} added to your warlock brewing bag.`);
       refreshHUD();
     }
   }
@@ -986,47 +1009,7 @@ function interactWithZone(zone) {
   }
 
   if (zone.type === "mutation") {
-    if (state.candy < 1) {
-      showToast("Need 1 candy stash collected to brew a mutation!");
-      soundFail();
-      return;
-    }
-    
-    state.candy -= 1;
-    if (world.cauldronPos) {
-      triggerCauldronBurst(world.cauldronPos);
-    }
-    // Brew sound effects (bubble and splash)
-    playTone(220, 780, 0.4, "triangle", 0.4);
-    setTimeout(() => playTone(640, 180, 0.22, "sawtooth", 0.25), 100);
-
-    const roll = Math.floor(Math.random() * 5);
-    if (roll === 0) {
-      applyChaseCostume(chase, 4); // Skeleton Ghost
-      showToast("🔮 Brewed: Skeleton Ghost Costume!");
-      setRadio("Candy mutated! Chase is dressed as a Skeleton Ghost.");
-    } else if (roll === 1) {
-      applyChaseCostume(chase, 5); // Black Cat Shadow
-      showToast("🔮 Brewed: Black Cat Shadow Costume!");
-      setRadio("Candy mutated! Chase is dressed as a glowing Black Cat.");
-    } else if (roll === 2) {
-      state.eggs += 6;
-      state.upgrades.stickyEggs = true;
-      showToast("🔮 Brewed: 6 Fire Candy Bombs!");
-      setRadio("Candy mutated! Obtained double-strength Fire Candy Bombs.");
-    } else if (roll === 3) {
-      state.health = Math.min(100, state.health + 30);
-      state.stamina = 100;
-      state.cash += 100;
-      showToast("🔮 Brewed: Warlock Speed Potion (+$100 Cash, +30 HP)!");
-      setRadio("Candy mutated! Drank speed potion: stamina refueled, health gained.");
-    } else {
-      state.cash += 300;
-      showToast("🔮 Brewed: Golden Witch Hat (+$300 Cash)!");
-      setRadio("Candy mutated! Brewed a pure gold Witch Hat worth $300.");
-    }
-
-    refreshHUD();
+    openCauldronMenu();
   }
 }
 
@@ -1445,6 +1428,217 @@ if (hud.btnInteract) {
   hud.btnInteract.addEventListener("click", (e) => {
     e.stopPropagation();
     triggerInteraction();
+  });
+}
+
+// CAULDRON BREWING RECIPES & UI SYSTEM
+let cauldronSelectedCandies = [];
+
+const cauldronMenu = document.getElementById("cauldronMenu");
+const btnCancelBrew = document.getElementById("btnCancelBrew");
+const btnConfirmBrew = document.getElementById("btnConfirmBrew");
+const slot1El = document.getElementById("slot1");
+const slot2El = document.getElementById("slot2");
+const outcomeTextEl = document.getElementById("outcomeText");
+
+const mutationRecipes = {
+  "candyCorn+candyCorn": { name: "Golden Witch Hat Upgrade (+$300 Cash)", reward: "cash300" },
+  "candyCorn+chocolateSkull": { name: "Skeleton Ghost Costume", reward: "costumeSkeleton" },
+  "chocolateSkull+candyCorn": { name: "Skeleton Ghost Costume", reward: "costumeSkeleton" },
+  "candyCorn+gummyWorm": { name: "Warlock Speed Potion (Full Stamina, HP & Cash)", reward: "potionSpeed" },
+  "gummyWorm+candyCorn": { name: "Warlock Speed Potion (Full Stamina, HP & Cash)", reward: "potionSpeed" },
+  "candyCorn+sourPumpkin": { name: "6 Fire Candy Bombs", reward: "fireBombs" },
+  "sourPumpkin+candyCorn": { name: "6 Fire Candy Bombs", reward: "fireBombs" },
+  "chocolateSkull+chocolateSkull": { name: "Grim Reaper Slasher Costume", reward: "costumeGrim" },
+  "chocolateSkull+gummyWorm": { name: "Warlock Speed Potion", reward: "potionSpeed" },
+  "gummyWorm+chocolateSkull": { name: "Warlock Speed Potion", reward: "potionSpeed" },
+  "chocolateSkull+sourPumpkin": { name: "Golden Crown Upgrade (+$250 Cash)", reward: "cash250" },
+  "sourPumpkin+chocolateSkull": { name: "Golden Crown Upgrade (+$250 Cash)", reward: "cash250" },
+  "gummyWorm+gummyWorm": { name: "Warlock Speed Potion (Full Stamina, HP & Cash)", reward: "potionSpeed" },
+  "gummyWorm+sourPumpkin": { name: "Black Cat Shadow Costume", reward: "costumeCat" },
+  "sourPumpkin+gummyWorm": { name: "Black Cat Shadow Costume", reward: "costumeCat" },
+  "sourPumpkin+sourPumpkin": { name: "Legendary Pumpkin King Costume", reward: "costumePumpkin" }
+};
+
+function openCauldronMenu() {
+  if (!cauldronMenu) return;
+  input.forward = 0;
+  input.strafe = 0;
+  input.turn = 0;
+  cauldronSelectedCandies = [];
+  updateCauldronMenuUI();
+  cauldronMenu.classList.remove("hidden");
+}
+
+function closeCauldronMenu() {
+  if (cauldronMenu) {
+    cauldronMenu.classList.add("hidden");
+  }
+}
+
+function updateCauldronMenuUI() {
+  if (document.getElementById("countCandyCorn")) {
+    document.getElementById("countCandyCorn").textContent = state.inventory.candyCorn || 0;
+  }
+  if (document.getElementById("countChocolateSkull")) {
+    document.getElementById("countChocolateSkull").textContent = state.inventory.chocolateSkull || 0;
+  }
+  if (document.getElementById("countGummyWorm")) {
+    document.getElementById("countGummyWorm").textContent = state.inventory.gummyWorm || 0;
+  }
+  if (document.getElementById("countSourPumpkin")) {
+    document.getElementById("countSourPumpkin").textContent = state.inventory.sourPumpkin || 0;
+  }
+
+  document.querySelectorAll(".inventory-item").forEach(item => {
+    const type = item.getAttribute("data-type");
+    const occurrences = cauldronSelectedCandies.filter(c => c === type).length;
+    if (occurrences > 0) {
+      item.classList.add("selected");
+    } else {
+      item.classList.remove("selected");
+    }
+  });
+
+  const slot1Val = cauldronSelectedCandies[0];
+  const slot2Val = cauldronSelectedCandies[1];
+  
+  const friendlyNames = {
+    candyCorn: "Candy Corn",
+    chocolateSkull: "Chocolate Skull",
+    gummyWorm: "Gummy Worm",
+    sourPumpkin: "Sour Pumpkin"
+  };
+
+  if (slot1El) {
+    slot1El.textContent = slot1Val ? friendlyNames[slot1Val] : "Empty";
+    slot1El.className = slot1Val ? "slot filled" : "slot";
+  }
+  if (slot2El) {
+    slot2El.textContent = slot2Val ? friendlyNames[slot2Val] : "Empty";
+    slot2El.className = slot2Val ? "slot filled" : "slot";
+  }
+
+  if (slot1Val && slot2Val) {
+    const key = `${slot1Val}+${slot2Val}`;
+    const recipe = mutationRecipes[key];
+    if (recipe) {
+      outcomeTextEl.textContent = `Creates: ${recipe.name}`;
+      btnConfirmBrew.disabled = false;
+    } else {
+      outcomeTextEl.textContent = "Unknown Recipe Mutation";
+      btnConfirmBrew.disabled = true;
+    }
+  } else {
+    outcomeTextEl.textContent = "Select two candies to preview mutation...";
+    btnConfirmBrew.disabled = true;
+  }
+}
+
+document.querySelectorAll(".inventory-item").forEach(item => {
+  item.addEventListener("click", () => {
+    ensureAudio();
+    const type = item.getAttribute("data-type");
+    const owned = state.inventory[type] || 0;
+    const selectedCount = cauldronSelectedCandies.filter(c => c === type).length;
+    
+    if (selectedCount >= owned) {
+      showToast(`No more ${type} available in bag!`);
+      playTone(120, 60, 0.25, "sawtooth", 0.2);
+      return;
+    }
+
+    if (cauldronSelectedCandies.length >= 2) {
+      cauldronSelectedCandies.shift();
+    }
+    cauldronSelectedCandies.push(type);
+    
+    playTone(440, 560, 0.1, "sine", 0.15);
+    updateCauldronMenuUI();
+  });
+});
+
+if (btnCancelBrew) {
+  btnCancelBrew.addEventListener("click", () => {
+    ensureAudio();
+    playTone(330, 220, 0.1, "sine", 0.1);
+    closeCauldronMenu();
+  });
+}
+
+if (btnConfirmBrew) {
+  btnConfirmBrew.addEventListener("click", () => {
+    ensureAudio();
+    const slot1 = cauldronSelectedCandies[0];
+    const slot2 = cauldronSelectedCandies[1];
+    if (!slot1 || !slot2) return;
+
+    if ((state.inventory[slot1] || 0) < 1 || (state.inventory[slot2] || 0) < 1) {
+      showToast("Insufficient candies to brew!");
+      return;
+    }
+
+    if (slot1 === slot2 && (state.inventory[slot1] || 0) < 2) {
+      showToast("Need 2 candies of this type to brew!");
+      return;
+    }
+
+    state.inventory[slot1]--;
+    state.inventory[slot2]--;
+    state.candy = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+
+    closeCauldronMenu();
+
+    if (world.cauldronPos) {
+      triggerCauldronBurst(world.cauldronPos);
+    }
+
+    playTone(220, 780, 0.45, "triangle", 0.45);
+    setTimeout(() => playTone(640, 180, 0.28, "sawtooth", 0.35), 100);
+
+    const recipeKey = `${slot1}+${slot2}`;
+    const recipe = mutationRecipes[recipeKey];
+    
+    if (recipe) {
+      if (recipe.reward === "costumeSkeleton") {
+        applyChaseCostume(chase, 4);
+        showToast("🔮 Mutated: Skeleton Ghost Costume!");
+        setRadio("Cauldron mutated! Chase is dressed as a Skeleton Ghost.");
+      } else if (recipe.reward === "costumeCat") {
+        applyChaseCostume(chase, 5);
+        showToast("🔮 Mutated: Black Cat Shadow Costume!");
+        setRadio("Cauldron mutated! Chase is dressed as a glowing Black Cat.");
+      } else if (recipe.reward === "costumeGrim") {
+        applyChaseCostume(chase, 3);
+        showToast("🔮 Mutated: Grim Slasher Costume!");
+        setRadio("Cauldron mutated! Chase is dressed as the Grim Slasher.");
+      } else if (recipe.reward === "costumePumpkin") {
+        applyChaseCostume(chase, 1);
+        showToast("🔮 Mutated: Legendary Pumpkin King Costume!");
+        setRadio("Cauldron mutated! Chase is wearing the glowing Pumpkin fit.");
+      } else if (recipe.reward === "fireBombs") {
+        state.eggs += 6;
+        state.upgrades.stickyEggs = true;
+        showToast("🔮 Mutated: 6 Fire Candy Bombs!");
+        setRadio("Cauldron mutated! Obtained double-strength Fire Candy Bombs.");
+      } else if (recipe.reward === "potionSpeed") {
+        state.health = Math.min(100, state.health + 30);
+        state.stamina = 100;
+        state.cash += 100;
+        showToast("🔮 Mutated: Warlock Speed Potion (+$100 Cash, +30 HP)!");
+        setRadio("Cauldron mutated! Drank speed potion: stamina refueled, health gained.");
+      } else if (recipe.reward === "cash250") {
+        state.cash += 250;
+        showToast("🔮 Mutated: Golden Crown Upgrade (+$250 Cash)!");
+        setRadio("Cauldron mutated! Earned $250 gold payout.");
+      } else if (recipe.reward === "cash300") {
+        state.cash += 300;
+        showToast("🔮 Mutated: Golden Witch Hat (+$300 Cash)!");
+        setRadio("Cauldron mutated! Brewed a pure gold Witch Hat worth $300.");
+      }
+    }
+
+    refreshHUD();
   });
 }
 

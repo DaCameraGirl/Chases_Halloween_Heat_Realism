@@ -118,6 +118,53 @@
     </div>
   </div>
 
+  <!-- Cauldron Mutation Recipe Menu -->
+  <div id="cauldronMenu" class="hidden">
+    <div class="cauldron-card">
+      <span class="eyebrow" style="color: #76ff03;">Mutation Cauldron</span>
+      <h2>Select Two Candies to Mix</h2>
+      <p class="desc">Select different candies from your bag to toss into the bubbling warlock pot and mutate your gear.</p>
+      
+      <div class="inventory-grid">
+        <div class="inventory-item" data-type="candyCorn">
+          <div class="item-icon">🍬</div>
+          <div class="item-name">Candy Corn</div>
+          <div class="item-count" id="countCandyCorn">0</div>
+        </div>
+        <div class="inventory-item" data-type="chocolateSkull">
+          <div class="item-icon">💀</div>
+          <div class="item-name">Chocolate Skull</div>
+          <div class="item-count" id="countChocolateSkull">0</div>
+        </div>
+        <div class="inventory-item" data-type="gummyWorm">
+          <div class="item-icon">🐛</div>
+          <div class="item-name">Gummy Worm</div>
+          <div class="item-count" id="countGummyWorm">0</div>
+        </div>
+        <div class="inventory-item" data-type="sourPumpkin">
+          <div class="item-icon">🎃</div>
+          <div class="item-name">Sour Pumpkin</div>
+          <div class="item-count" id="countSourPumpkin">0</div>
+        </div>
+      </div>
+
+      <div class="brew-preview">
+        <div class="recipe-title">Selected for Mutation:</div>
+        <div class="recipe-slots">
+          <span class="slot" id="slot1">Empty</span>
+          <span class="plus">+</span>
+          <span class="slot" id="slot2">Empty</span>
+        </div>
+        <div class="recipe-outcome" id="outcomeText">Select two candies to preview mutation...</div>
+      </div>
+
+      <div class="menu-actions">
+        <button id="btnCancelBrew" class="btn-secondary">Close Bag</button>
+        <button id="btnConfirmBrew" class="btn-primary" disabled>Mutate Candy</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="./js/main.js?v=1.0.1"></script>
 </body>
 </html>

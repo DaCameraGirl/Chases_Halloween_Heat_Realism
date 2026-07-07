@@ -235,3 +235,195 @@ code {
   .notes { grid-row: 4; }
   .pipeline { grid-row: 5; }
 }
+
+#cauldronMenu {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 8, 16, 0.65);
+  backdrop-filter: blur(16px);
+  z-index: 9999;
+}
+
+#cauldronMenu.hidden {
+  display: none;
+}
+
+.cauldron-card {
+  width: min(540px, 100%);
+  background: rgba(10, 6, 15, 0.94);
+  border: 2px solid rgba(118, 255, 3, 0.35);
+  border-radius: 24px;
+  padding: 24px 28px;
+  text-align: center;
+  box-shadow: 0 0 35px rgba(118, 255, 3, 0.15), 0 20px 50px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.cauldron-card h2 {
+  font-size: 1.8rem;
+  margin: 6px 0;
+  color: #fff;
+}
+
+.cauldron-card .desc {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.inventory-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 120ms ease;
+  position: relative;
+}
+
+.inventory-item:hover {
+  background: rgba(118, 255, 3, 0.05);
+  border-color: rgba(118, 255, 3, 0.4);
+}
+
+.inventory-item.selected {
+  background: rgba(118, 255, 3, 0.1);
+  border-color: #76ff03;
+  box-shadow: 0 0 12px rgba(118, 255, 3, 0.25);
+}
+
+.item-icon {
+  font-size: 2.2rem;
+  margin-bottom: 6px;
+}
+
+.item-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.item-count {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-cool);
+}
+
+.brew-preview {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed rgba(118, 255, 3, 0.25);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.recipe-title {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #aeb6d0;
+  margin-bottom: 8px;
+}
+
+.recipe-slots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.recipe-slots .slot {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 120px;
+}
+
+.recipe-slots .slot.filled {
+  border-color: #76ff03;
+  background: rgba(118, 255, 3, 0.05);
+}
+
+.recipe-slots .plus {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #76ff03;
+}
+
+.recipe-outcome {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #76ff03;
+  min-height: 20px;
+}
+
+.menu-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-secondary {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-primary {
+  flex: 1;
+  padding: 12px;
+  background: #76ff03;
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(118, 255, 3, 0.3);
+  transition: all 120ms ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #84ff1f;
+  box-shadow: 0 6px 18px rgba(118, 255, 3, 0.45);
+}
+
+.btn-primary:disabled {
+  background: #2a3c1e;
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
