@@ -142,6 +142,7 @@ function playTone(freq, freqEnd, duration, type = "sine", vol = 0.3) {
   osc.stop(now + duration + 0.02);
 }
 
+// Sound feedback bindings
 function soundPickup() { playTone(520, 1040, 0.15, "triangle", 0.2); }
 function soundHit() { playTone(180, 80, 0.25, "sawtooth", 0.35); }
 function soundUpgrade() {
@@ -196,7 +197,6 @@ function setReviewOrbitDefaults() {
 
 // Ensure the forward movement vector matches the camera's actual view vector
 function getLookForwardBasis() {
-  // Compute horizontal direction of camera
   const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   dir.y = 0;
   dir.normalize();
@@ -373,7 +373,6 @@ function throwCandyBomb() {
   mesh.position.copy(spawnPos);
   scene.add(mesh);
 
-  // Direction matches Chase's actual orientation
   const forwardDir = new THREE.Vector3(0, 0.38, 1);
   forwardDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), chase.group.rotation.y);
   forwardDir.normalize();
@@ -801,13 +800,19 @@ window.addEventListener("keydown", (event) => {
   ensureAudio();
   
   const key = event.key ? event.key.toLowerCase() : "";
-  if (event.code === "KeyW" || key === "w") {
+  if (event.code === "KeyW" || key === "w" || event.code === "ArrowUp" || key === "arrowup") {
     input.forward = 1;
     input.keyboardWPressed = true;
   }
-  if (event.code === "KeyS" || key === "s") input.forward = -1;
-  if (event.code === "KeyA" || key === "a") input.strafe = -1;
-  if (event.code === "KeyD" || key === "d") input.strafe = 1;
+  if (event.code === "KeyS" || key === "s" || event.code === "ArrowDown" || key === "arrowdown") {
+    input.forward = -1;
+  }
+  if (event.code === "KeyA" || key === "a" || event.code === "ArrowLeft" || key === "arrowleft") {
+    input.strafe = -1;
+  }
+  if (event.code === "KeyD" || key === "d" || event.code === "ArrowRight" || key === "arrowright") {
+    input.strafe = 1;
+  }
   if (event.code === "KeyQ" || key === "q") input.turn = 1;
   if (event.code === "KeyE" || key === "e") input.turn = -1;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
@@ -845,15 +850,21 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("keyup", (event) => {
   const key = event.key ? event.key.toLowerCase() : "";
-  if (event.code === "KeyW" || key === "w") {
+  if (event.code === "KeyW" || key === "w" || event.code === "ArrowUp" || key === "arrowup") {
     input.keyboardWPressed = false;
     if (!input.leftMouseDown) {
       input.forward = 0;
     }
   }
-  if ((event.code === "KeyS" || key === "s") && input.forward < 0) input.forward = 0;
-  if ((event.code === "KeyA" || key === "a") && input.strafe < 0) input.strafe = 0;
-  if ((event.code === "KeyD" || key === "d") && input.strafe > 0) input.strafe = 0;
+  if ((event.code === "KeyS" || key === "s" || event.code === "ArrowDown" || key === "arrowdown") && input.forward < 0) {
+    input.forward = 0;
+  }
+  if ((event.code === "KeyA" || key === "a" || event.code === "ArrowLeft" || key === "arrowleft") && input.strafe < 0) {
+    input.strafe = 0;
+  }
+  if ((event.code === "KeyD" || key === "d" || event.code === "ArrowRight" || key === "arrowright") && input.strafe > 0) {
+    input.strafe = 0;
+  }
   if ((event.code === "KeyQ" || key === "q") && input.turn > 0) input.turn = 0;
   if ((event.code === "KeyE" || key === "e") && input.turn < 0) input.turn = 0;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = false;
@@ -862,11 +873,9 @@ window.addEventListener("keyup", (event) => {
 canvas.addEventListener("pointerdown", (event) => {
   ensureAudio();
   if (event.button === 0) {
-    // Hold Left click to walk forward
     input.leftMouseDown = true;
     input.forward = 1;
   } else if (event.button === 2) {
-    // Hold Right click to drag/orbit camera
     input.dragging = true;
     input.lastX = event.clientX;
     input.lastY = event.clientY;
