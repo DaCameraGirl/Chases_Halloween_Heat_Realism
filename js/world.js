@@ -371,7 +371,7 @@ export function createWorld(scene) {
     [-16, -10], [-12, 15], [0, -22], [16, 11], [22, -12], [-25, 26], [28, 25], [-31, -24]
   ].forEach(([x, z]) => createLamp(x, z));
 
-  // GLOWING PUMPKIN HOUSE (COSTUME BLENDER HOUSE)
+  // GLOWING PUMPKIN HOUSE (COSTUME BLENDER HOUSE - Hollow inside!)
   function createPumpkinHouse(x, z, config) {
     const group = new THREE.Group();
     const segmentCount = 10;
@@ -383,7 +383,7 @@ export function createWorld(scene) {
       emissiveIntensity: 0.3
     });
 
-    // Ribbed structural sphereSegments
+    // Ribbed segments
     for (let i = 0; i < segmentCount; i++) {
       const seg = new THREE.Mesh(
         new THREE.SphereGeometry(3.6, 16, 16),
@@ -403,7 +403,7 @@ export function createWorld(scene) {
     stem.rotation.z = -0.15;
     group.add(stem);
 
-    // Carved Glowing Eye windows
+    // Carved eye windows
     const faceColor = 0xffdf58;
     const glowMat = new THREE.MeshBasicMaterial({ color: faceColor });
     for (const side of [-1, 1]) {
@@ -413,7 +413,39 @@ export function createWorld(scene) {
       group.add(eye);
     }
 
-    // Entrance door vault
+    // Hollow interior floor
+    const interiorFloor = new THREE.Mesh(
+      new THREE.BoxGeometry(4.8, 0.14, 4.8),
+      new THREE.MeshStandardMaterial({ color: 0x24112e, emissive: 0x0f0516, emissiveIntensity: 0.45 })
+    );
+    interiorFloor.position.set(0, 0.07, 0);
+    group.add(interiorFloor);
+
+    // Costume Crypt clothing hangers inside!
+    const rackBase = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 0.24, 0.8),
+      new THREE.MeshStandardMaterial({ color: 0x2c1f30 })
+    );
+    rackBase.position.set(0, 0.12, -1.2);
+    group.add(rackBase);
+
+    for (const side of [-1, 1]) {
+      const hanger = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 1.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5 })
+      );
+      hanger.position.set(side * 0.7, 1.0, -1.2);
+      group.add(hanger);
+
+      const costumeProp = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.2, 0.5, 4, 8),
+        new THREE.MeshStandardMaterial({ color: side < 0 ? 0xff5555 : 0x9955ff, roughness: 0.6 })
+      );
+      costumeProp.position.set(side * 0.7, 1.1, -1.2);
+      group.add(costumeProp);
+    }
+
+    // Entrance doorway cut-out visual
     const doorway = new THREE.Mesh(
       new THREE.BoxGeometry(1.7, 2.1, 1.2),
       new THREE.MeshBasicMaterial({ color: 0x11071c })
@@ -423,7 +455,7 @@ export function createWorld(scene) {
 
     // Dynamic Shop light
     const shopLight = new THREE.PointLight(0xff7700, 3.0, 16, 1.5);
-    shopLight.position.set(0, 1.5, 1.5);
+    shopLight.position.set(0, 1.5, 0.5);
     group.add(shopLight);
 
     if (config.sign) {
@@ -456,21 +488,27 @@ export function createWorld(scene) {
       enterable: true
     });
 
-    world.solids.push({
-      minX: x - 3.6,
-      maxX: x + 3.6,
-      minZ: z - 3.6,
-      maxZ: z + 3.6
-    });
+    // U-shaped wall collisions: lets Chase enter the front door (Z > 0)!
+    const r = 3.6;
+    const wallThick = 0.45;
+    world.solids.push(
+      // Back wall
+      { minX: x - r, maxX: x + r, minZ: z - r, maxZ: z - r + wallThick },
+      // Left wall
+      { minX: x - r, maxX: x - r + wallThick, minZ: z - r, maxZ: z + r },
+      // Right wall
+      { minX: x + r - wallThick, maxX: x + r, minZ: z - r, maxZ: z + r }
+    );
   }
 
-  // STANDARD HOUSES & SHOPS
+  // STANDARD HOUSES & ENTERABLE SHOPS
   function createHouse(config) {
     const group = new THREE.Group();
     const wallMaterial = new THREE.MeshStandardMaterial({ color: config.color, roughness: 0.94 });
     const wallDepth = 0.32;
 
     if (config.enterable) {
+      // Draw hollow walls: back, left, right (leaving front open!)
       const backWall = new THREE.Mesh(
         new THREE.BoxGeometry(config.w, config.h, wallDepth),
         wallMaterial
@@ -496,6 +534,7 @@ export function createWorld(scene) {
       fascia.position.set(0, config.h * 0.88, config.d / 2 - wallDepth / 2);
       group.add(fascia);
 
+      // Interior floor
       const interiorFloor = new THREE.Mesh(
         new THREE.BoxGeometry(config.w * 0.88, 0.14, config.d * 0.78),
         new THREE.MeshStandardMaterial({ color: 0x2c2334, emissive: 0x130d18, emissiveIntensity: 0.45, roughness: 0.95 })
@@ -510,27 +549,76 @@ export function createWorld(scene) {
       rackBase.position.set(0, 0.12, -config.d * 0.1);
       group.add(rackBase);
 
-      for (const side of [-1, 1]) {
-        const hanger = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8),
-          new THREE.MeshStandardMaterial({ color: 0xd9cad8, metalness: 0.4, roughness: 0.35 })
+      // Customize Interior Props depending on the shop sign!
+      if (config.sign === "Candy Forge") {
+        // Weapons/Bombs Rack: draw glowing bombs on the counter
+        for (let i = -1; i <= 1; i++) {
+          const bombProp = new THREE.Mesh(
+            new THREE.SphereGeometry(0.15, 8, 8),
+            new THREE.MeshStandardMaterial({ color: i === 0 ? 0xff8b2b : 0xb86bff, emissive: i === 0 ? 0xff5500 : 0x501577, emissiveIntensity: 2 })
+          );
+          bombProp.position.set(i * 0.35, 0.35, -config.d * 0.1);
+          group.add(bombProp);
+        }
+      } else if (config.sign === "Hex Market") {
+        // Ward shop: draw a glowing green ward sigil
+        const sigil = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.16, 0),
+          new THREE.MeshStandardMaterial({ color: 0x87ffb4, emissive: 0x3dfa7e, emissiveIntensity: 2.2 })
         );
-        hanger.position.set(side * 0.8, 1.08, -config.d * 0.1);
-        group.add(hanger);
+        sigil.position.set(0, 0.38, -config.d * 0.1);
+        group.add(sigil);
+      } else if (config.sign === "Hearse Garage") {
+        // Car shop: draw spare tyres stacked up
+        for (let i = -1; i <= 1; i += 2) {
+          const tire = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.24, 0.24, 0.15, 8),
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 })
+          );
+          tire.rotation.z = Math.PI / 2;
+          tire.position.set(i * 0.9, 0.2, -config.d * 0.2);
+          group.add(tire);
+        }
+      } else if (config.sign === "Safehouse") {
+        // Healing box
+        const medBox = new THREE.Mesh(
+          new THREE.BoxGeometry(0.4, 0.3, 0.3),
+          new THREE.MeshStandardMaterial({ color: 0xff4444 })
+        );
+        medBox.position.set(0, 0.35, -config.d * 0.1);
+        group.add(medBox);
+        
+        const cross = new THREE.Mesh(
+          new THREE.BoxGeometry(0.25, 0.08, 0.32),
+          new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        cross.position.set(0, 0.505, -config.d * 0.1);
+        group.add(cross);
+      } else {
+        // General hangers for houses
+        for (const side of [-1, 1]) {
+          const hanger = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8),
+            new THREE.MeshStandardMaterial({ color: 0xd9cad8, metalness: 0.4, roughness: 0.35 })
+          );
+          hanger.position.set(side * 0.8, 1.08, -config.d * 0.1);
+          group.add(hanger);
 
-        const costume = new THREE.Mesh(
-          new THREE.CapsuleGeometry(0.24, 0.58, 5, 10),
-          new THREE.MeshStandardMaterial({
-            color: side < 0 ? 0xff6b54 : 0x8b6cff,
-            emissive: side < 0 ? 0x5a1e14 : 0x281254,
-            emissiveIntensity: 0.2,
-            roughness: 0.7
-          })
-        );
-        costume.position.set(side * 0.8, 1.18, -config.d * 0.1);
-        group.add(costume);
+          const costume = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.24, 0.58, 5, 10),
+            new THREE.MeshStandardMaterial({
+              color: side < 0 ? 0xff6b54 : 0x8b6cff,
+              emissive: side < 0 ? 0x5a1e14 : 0x281254,
+              emissiveIntensity: 0.2,
+              roughness: 0.7
+            })
+          );
+          costume.position.set(side * 0.8, 1.18, -config.d * 0.1);
+          group.add(costume);
+        }
       }
 
+      // Lights
       const ceilingGlow = new THREE.PointLight(0xffddb0, 1.85, 16, 2);
       ceilingGlow.position.set(0, 3.15, -0.25);
       group.add(ceilingGlow);
@@ -647,15 +735,15 @@ export function createWorld(scene) {
     }
   }
 
-  // Create primary buildings
-  createHouse({ x: -18, z: 33, w: 8, h: 4.2, d: 7, color: 0x3b4359, roof: 0x2a0f12, window: 0xffcf7b, sign: "Safehouse", signAccent: "#7cf4da" });
-  createHouse({ x: 22, z: 31, w: 8, h: 4.4, d: 7, color: 0x5b2f35, roof: 0x250d13, window: 0xffd69d, sign: "Candy Forge", signAccent: "#ff8f3d" });
+  // ALL 5 CORE BUILDINGS SET TO ENTERABLE
+  createHouse({ x: -18, z: 33, w: 8, h: 4.2, d: 7, color: 0x3b4359, roof: 0x2a0f12, window: 0xffcf7b, sign: "Safehouse", signAccent: "#7cf4da", enterable: true });
+  createHouse({ x: 22, z: 31, w: 8, h: 4.4, d: 7, color: 0x5b2f35, roof: 0x250d13, window: 0xffd69d, sign: "Candy Forge", signAccent: "#ff8f3d", enterable: true });
   
-  // Costume Crypt replaced with Glowing Pumpkin House!
+  // Costume Crypt replaced with Glowing Pumpkin House (carved & hollow interior)!
   createPumpkinHouse(-33, -17, { sign: "Costume Crypt", signAccent: "#ff4f8a" });
   
-  createHouse({ x: 33, z: -18, w: 8.4, h: 4.2, d: 6.4, color: 0x26344f, roof: 0x11161f, window: 0x8be8ff, sign: "Hearse Garage", signAccent: "#8be8ff" });
-  createHouse({ x: -2, z: -34, w: 7.6, h: 4.3, d: 6.8, color: 0x40352b, roof: 0x1e1010, window: 0xb8ffcf, sign: "Hex Market", signAccent: "#87ffb4" });
+  createHouse({ x: 33, z: -18, w: 8.4, h: 4.2, d: 6.4, color: 0x26344f, roof: 0x11161f, window: 0x8be8ff, sign: "Hearse Garage", signAccent: "#8be8ff", enterable: true });
+  createHouse({ x: -2, z: -34, w: 7.6, h: 4.3, d: 6.8, color: 0x40352b, roof: 0x1e1010, window: 0xb8ffcf, sign: "Hex Market", signAccent: "#87ffb4", enterable: true });
   
   // Extra decorative houses
   createHouse({ x: 11, z: -32, w: 7.2, h: 4, d: 6.1, color: 0x403240, roof: 0x16090b, window: 0xffcf7b });
@@ -964,7 +1052,7 @@ export function createWorld(scene) {
   createBlackCat(-33, 0.02, -32, 0.8); // Inside Cemetery
   createBlackCat(23, 0.02, 2, -0.4); // Near Ritual Beacon center
 
-  // ZONES (toruses and light beams)
+  // ZONES (toruses and light beams - placed DIRECTLY INSIDE the hollow shop buildings!)
   function createZone(config) {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(config.radius, 0.12, 12, 48),
@@ -1001,15 +1089,12 @@ export function createWorld(scene) {
     return zone;
   }
 
-  function storefrontZ(houseZ, depth, padding = 1.3) {
-    return houseZ + depth / 2 + padding;
-  }
-
-  const safehouseZone = createZone({ type: "safehouse", label: "Safehouse", x: -18, z: storefrontZ(33, 7, 1.8), radius: 2.4, color: 0x7cf4da, cssColor: "#7cf4da" });
-  const candyForgeZone = createZone({ type: "candyForge", label: "Candy Forge", x: 22, z: storefrontZ(31, 7), radius: 2.2, color: 0xff8f3d, cssColor: "#ff8f3d" });
-  const costumeZone = createZone({ type: "costume", label: "Costume Crypt", x: -33, z: -16.5, radius: 1.75, color: 0xff4f8a, cssColor: "#ff4f8a" });
-  const garageZone = createZone({ type: "garage", label: "Hearse Garage", x: 33, z: storefrontZ(-18, 6.4), radius: 2.2, color: 0x8be8ff, cssColor: "#8be8ff" });
-  const wardZone = createZone({ type: "ward", label: "Hex Market", x: -2, z: storefrontZ(-34, 6.8), radius: 2.2, color: 0x87ffb4, cssColor: "#87ffb4" });
+  // Zones relocated deep inside the respective enterable buildings!
+  const safehouseZone = createZone({ type: "safehouse", label: "Safehouse", x: -18, z: 32.5, radius: 2.4, color: 0x7cf4da, cssColor: "#7cf4da" });
+  const candyForgeZone = createZone({ type: "candyForge", label: "Candy Forge", x: 22, z: 30.5, radius: 2.2, color: 0xff8f3d, cssColor: "#ff8f3d" });
+  const costumeZone = createZone({ type: "costume", label: "Costume Crypt", x: -33, z: -17.5, radius: 1.75, color: 0xff4f8a, cssColor: "#ff4f8a" });
+  const garageZone = createZone({ type: "garage", label: "Hearse Garage", x: 33, z: -18.5, radius: 2.2, color: 0x8be8ff, cssColor: "#8be8ff" });
+  const wardZone = createZone({ type: "ward", label: "Hex Market", x: -2, z: -34.5, radius: 2.2, color: 0x87ffb4, cssColor: "#87ffb4" });
   const beaconZone = createZone({ type: "beacon", label: "Ritual Beacon", x: 26, z: 0, radius: 2.6, color: 0xffc25f, cssColor: "#ffbf5f" });
 
   // PUMPKIN LOOT BUCKETS (REPLACES BOXES FOR CANDIES)
