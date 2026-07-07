@@ -1537,9 +1537,14 @@ function tick() {
   // Animate ghosts
   for (const ghost of world.ghosts) {
     ghost.group.position.x = ghost.baseX + Math.sin(clock.elapsedTime * 0.7 + ghost.phase) * 1.6;
-    ghost.group.position.y = 2.5 + Math.sin(clock.elapsedTime * 1.3 + ghost.phase) * 0.55;
+    ghost.group.position.y = 2.2 + Math.sin(clock.elapsedTime * 1.3 + ghost.phase) * 0.45;
     ghost.group.position.z = ghost.baseZ + Math.cos(clock.elapsedTime * 0.5 + ghost.phase) * 1.2;
     ghost.group.rotation.y += dt * 0.5;
+
+    if (ghost.armL && ghost.armR) {
+      ghost.armL.rotation.x = Math.PI / 3 + Math.sin(clock.elapsedTime * 2.8 + ghost.phase) * 0.15;
+      ghost.armR.rotation.x = Math.PI / 3 + Math.cos(clock.elapsedTime * 2.8 + ghost.phase) * 0.15;
+    }
   }
 
   // Animate kids

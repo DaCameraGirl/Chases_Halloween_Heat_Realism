@@ -254,11 +254,11 @@ code {
 .cauldron-card {
   width: min(540px, 100%);
   background: rgba(10, 6, 15, 0.94);
-  border: 2px solid rgba(118, 255, 3, 0.35);
+  border: 2px solid rgba(138, 43, 226, 0.35);
   border-radius: 24px;
   padding: 24px 28px;
   text-align: center;
-  box-shadow: 0 0 35px rgba(118, 255, 3, 0.15), 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 35px rgba(138, 43, 226, 0.15), 0 20px 50px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
 }
 
@@ -295,14 +295,14 @@ code {
 }
 
 .inventory-item:hover {
-  background: rgba(118, 255, 3, 0.05);
-  border-color: rgba(118, 255, 3, 0.4);
+  background: rgba(138, 43, 226, 0.05);
+  border-color: rgba(138, 43, 226, 0.4);
 }
 
 .inventory-item.selected {
-  background: rgba(118, 255, 3, 0.1);
-  border-color: #76ff03;
-  box-shadow: 0 0 12px rgba(118, 255, 3, 0.25);
+  background: rgba(138, 43, 226, 0.1);
+  border-color: #8a2be2;
+  box-shadow: 0 0 12px rgba(138, 43, 226, 0.25);
 }
 
 .item-icon {
@@ -331,7 +331,7 @@ code {
 
 .brew-preview {
   background: rgba(0, 0, 0, 0.25);
-  border: 1px dashed rgba(118, 255, 3, 0.25);
+  border: 1px dashed rgba(138, 43, 226, 0.25);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 24px;
@@ -365,20 +365,20 @@ code {
 }
 
 .recipe-slots .slot.filled {
-  border-color: #76ff03;
-  background: rgba(118, 255, 3, 0.05);
+  border-color: #8a2be2;
+  background: rgba(138, 43, 226, 0.05);
 }
 
 .recipe-slots .plus {
   font-size: 1.2rem;
   font-weight: bold;
-  color: #76ff03;
+  color: #8a2be2;
 }
 
 .recipe-outcome {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #76ff03;
+  color: #8a2be2;
   min-height: 20px;
 }
 
@@ -406,23 +406,23 @@ code {
 .btn-primary {
   flex: 1;
   padding: 12px;
-  background: #76ff03;
-  color: #000;
+  background: #8a2be2;
+  color: #fff;
   border: none;
   border-radius: 12px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(118, 255, 3, 0.3);
+  box-shadow: 0 4px 14px rgba(138, 43, 226, 0.3);
   transition: all 120ms ease;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #84ff1f;
-  box-shadow: 0 6px 18px rgba(118, 255, 3, 0.45);
+  background: #9b30ff;
+  box-shadow: 0 6px 18px rgba(138, 43, 226, 0.45);
 }
 
 .btn-primary:disabled {
-  background: #2a3c1e;
+  background: #2a1e3c;
   color: rgba(255, 255, 255, 0.3);
   box-shadow: none;
   cursor: not-allowed;
@@ -435,11 +435,11 @@ code {
   width: 160px;
   height: 160px;
   border-radius: 999px;
-  border: 2px solid rgba(118, 255, 3, 0.35);
+  border: 2px solid rgba(138, 43, 226, 0.35);
   background: rgba(10, 6, 15, 0.82);
   backdrop-filter: blur(8px);
   overflow: hidden;
-  box-shadow: 0 0 20px rgba(118, 255, 3, 0.15), 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.15), 0 10px 30px rgba(0, 0, 0, 0.6);
   z-index: 999;
   pointer-events: none;
 }

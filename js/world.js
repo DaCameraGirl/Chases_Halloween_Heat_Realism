@@ -1158,47 +1158,68 @@ export function createWorld(scene) {
     scene.add(puddle);
   });
 
-  // GHOSTS WITH GLOWING RED EYE MESHES
+  // GHOST GHOULS WITH REACHING ARMS & HOLLOW FACE
   function createGhost(x, z, phase) {
     const group = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.SphereGeometry(0.7, 16, 16),
-      new THREE.MeshStandardMaterial({
-        color: 0xcff7ff,
-        emissive: 0x8ef2ff,
-        emissiveIntensity: 0.8,
-        transparent: true,
-        opacity: 0.58,
-        roughness: 0.2
-      })
-    );
-    body.scale.y = 1.22;
-    group.add(body);
+    const ghostMat = new THREE.MeshStandardMaterial({
+      color: 0xd6d8e2, // Spooky bone grey sheet
+      emissive: 0x1a1c22,
+      emissiveIntensity: 0.12,
+      transparent: true,
+      opacity: 0.62,
+      roughness: 0.95
+    });
 
-    const tail = new THREE.Mesh(
-      new THREE.ConeGeometry(0.56, 1.1, 12),
-      new THREE.MeshStandardMaterial({
-        color: 0xbef7ff,
-        emissive: 0x8ef2ff,
-        emissiveIntensity: 0.6,
-        transparent: true,
-        opacity: 0.48
-      })
-    );
-    tail.position.y = -0.92;
-    group.add(tail);
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.48, 12, 12), ghostMat);
+    head.position.y = 0.8;
+    group.add(head);
 
-    // Glowing red eyes
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff1e1e });
-    for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
-      eye.position.set(side * 0.22, 0.24, 0.56);
-      group.add(eye);
+    // Shroud torso
+    const shroud = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.65, 1.1, 12, 1, true), ghostMat);
+    shroud.position.y = 0.15;
+    group.add(shroud);
+
+    // Shroud folds (ragged bottom edges)
+    for (let i = 0; i < 5; i++) {
+      const fold = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.65, 5), ghostMat);
+      const angle = (i / 5) * Math.PI * 2;
+      fold.position.set(Math.cos(angle) * 0.42, -0.45, Math.sin(angle) * 0.42);
+      fold.rotation.x = Math.sin(angle) * 0.18;
+      fold.rotation.z = Math.cos(angle) * -0.18;
+      group.add(fold);
     }
+
+    // Reaching skeletal arms
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.6, 4, 8), ghostMat);
+    armL.position.set(-0.55, 0.4, 0.3);
+    armL.rotation.set(Math.PI / 3, 0, -Math.PI / 10);
+    group.add(armL);
+
+    const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.6, 4, 8), ghostMat);
+    armR.position.set(0.55, 0.4, 0.3);
+    armR.rotation.set(Math.PI / 3, 0, Math.PI / 10);
+    group.add(armR);
+
+    // Hollow screaming eyes and mouth
+    const faceMat = new THREE.MeshBasicMaterial({ color: 0x080808 });
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), faceMat);
+    eyeL.scale.set(1.0, 1.4, 0.5);
+    eyeL.position.set(-0.15, 0.82, 0.42);
+    group.add(eyeL);
+
+    const eyeR = eyeL.clone();
+    eyeR.position.x = 0.16;
+    group.add(eyeR);
+
+    const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), faceMat);
+    mouth.scale.set(0.72, 1.8, 0.5);
+    mouth.position.set(0, 0.64, 0.42);
+    group.add(mouth);
 
     group.position.set(x, 2.5, z);
     scene.add(group);
-    world.ghosts.push({ group, baseX: x, baseZ: z, phase });
+    world.ghosts.push({ group, armL, armR, baseX: x, baseZ: z, phase });
   }
 
   createGhost(-35, 6, 0);
@@ -1293,7 +1314,7 @@ export function createWorld(scene) {
   function createZone(config) {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(config.radius, 0.12, 12, 48),
-      new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 0.85 })
+      new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 0.35 })
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.set(config.x, 0.08, config.z);
@@ -1301,7 +1322,7 @@ export function createWorld(scene) {
 
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.16, 0.7, 8, 16, 1, true),
-      new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 0.16, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 0.05, side: THREE.DoubleSide })
     );
     beam.position.set(config.x, 4, config.z);
     scene.add(beam);
@@ -1326,14 +1347,14 @@ export function createWorld(scene) {
     return zone;
   }
 
-  // Zones relocated deep inside the respective enterable buildings!
-  const safehouseZone = createZone({ type: "safehouse", label: "Safehouse", x: -18, z: 32.5, radius: 2.4, color: 0x7cf4da, cssColor: "#7cf4da" });
-  const candyForgeZone = createZone({ type: "candyForge", label: "Candy Forge", x: 22, z: 30.5, radius: 2.2, color: 0xff8f3d, cssColor: "#ff8f3d" });
-  const costumeZone = createZone({ type: "costume", label: "Costume Crypt", x: -33, z: -17.5, radius: 1.75, color: 0xff4f8a, cssColor: "#ff4f8a" });
-  const garageZone = createZone({ type: "garage", label: "Hearse Garage", x: 33, z: -18.5, radius: 2.2, color: 0x8be8ff, cssColor: "#8be8ff" });
-  const wardZone = createZone({ type: "ward", label: "Hex Market", x: -2, z: -34.5, radius: 2.2, color: 0x87ffb4, cssColor: "#87ffb4" });
-  const beaconZone = createZone({ type: "beacon", label: "Ritual Beacon", x: 26, z: 0, radius: 2.6, color: 0xffc25f, cssColor: "#ffbf5f" });
-  const mutationZone = createZone({ type: "mutation", label: "Mutation Pot", x: 31, z: 11.3, radius: 2.2, color: 0x76ff03, cssColor: "#76ff03" });
+  // Muted gothic, atmospheric colors (no bright neon columns!)
+  const safehouseZone = createZone({ type: "safehouse", label: "Safehouse", x: -18, z: 32.5, radius: 2.4, color: 0xc48043, cssColor: "#c48043" });
+  const candyForgeZone = createZone({ type: "candyForge", label: "Candy Forge", x: 22, z: 30.5, radius: 2.2, color: 0x8c3f1d, cssColor: "#8c3f1d" });
+  const costumeZone = createZone({ type: "costume", label: "Costume Crypt", x: -33, z: -17.5, radius: 1.75, color: 0x4f265c, cssColor: "#4f265c" });
+  const garageZone = createZone({ type: "garage", label: "Hearse Garage", x: 33, z: -18.5, radius: 2.2, color: 0x2e4256, cssColor: "#2e4256" });
+  const wardZone = createZone({ type: "ward", label: "Hex Market", x: -2, z: -34.5, radius: 2.2, color: 0x1d4745, cssColor: "#1d4745" });
+  const beaconZone = createZone({ type: "beacon", label: "Ritual Beacon", x: 26, z: 0, radius: 2.6, color: 0x946b2b, cssColor: "#946b2b" });
+  const mutationZone = createZone({ type: "mutation", label: "Mutation Pot", x: 31, z: 11.3, radius: 2.2, color: 0x2e4a1a, cssColor: "#2e4a1a" });
 
   // PUMPKIN LOOT BUCKETS (REPLACES BOXES FOR CANDIES)
   function createPumpkinBucket(group) {
