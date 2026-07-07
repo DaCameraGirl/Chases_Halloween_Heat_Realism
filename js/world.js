@@ -354,7 +354,25 @@ export function createWorld(scene) {
 
     const light = new THREE.PointLight(0xff9e57, 1.5, 14, 2);
     light.position.set(0.9, 4.3, 0);
+    light.castShadow = true;
+    light.shadow.mapSize.width = 512;
+    light.shadow.mapSize.height = 512;
+    light.shadow.bias = -0.002;
     group.add(light);
+
+    // Dynamic volumetric light cone to simulate atmospheric fog/mist!
+    const coneGeom = new THREE.CylinderGeometry(0.15, 2.8, 4.3, 16, 1, true);
+    const coneMat = new THREE.MeshBasicMaterial({
+      color: 0xff9e57,
+      transparent: true,
+      opacity: 0.14,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+    const glowCone = new THREE.Mesh(coneGeom, coneMat);
+    glowCone.position.set(0.9, 2.15, 0);
+    group.add(glowCone);
 
     group.position.set(x, 0, z);
     scene.add(group);
@@ -832,18 +850,23 @@ export function createWorld(scene) {
   function createTree(x, z, scale = 1) {
     const group = new THREE.Group();
     const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18 * scale, 0.28 * scale, 2.2 * scale, 7),
-      new THREE.MeshStandardMaterial({ color: 0x3e2718, roughness: 1 })
+      new THREE.CylinderGeometry(0.16 * scale, 0.26 * scale, 2.4 * scale, 8),
+      new THREE.MeshStandardMaterial({ color: 0x2e1a0c, roughness: 1 })
     );
-    trunk.position.y = 1.1 * scale;
+    trunk.position.y = 1.2 * scale;
     group.add(trunk);
 
-    const leaves = new THREE.Mesh(
-      new THREE.ConeGeometry(1.4 * scale, 3.3 * scale, 8),
-      new THREE.MeshStandardMaterial({ color: 0x0f2010, roughness: 1 })
-    );
-    leaves.position.y = 3.3 * scale;
-    group.add(leaves);
+    const pineColors = [0x0c1a0e, 0x0f2212, 0x122915, 0x16311a];
+    for (let i = 0; i < 4; i++) {
+      const radius = (1.5 - i * 0.28) * scale;
+      const height = (1.6 - i * 0.15) * scale;
+      const leavesMesh = new THREE.Mesh(
+        new THREE.ConeGeometry(radius, height, 7),
+        new THREE.MeshStandardMaterial({ color: pineColors[i], roughness: 0.95 })
+      );
+      leavesMesh.position.y = (1.8 + i * 0.92) * scale;
+      group.add(leavesMesh);
+    }
 
     group.position.set(x, 0, z);
     scene.add(group);
@@ -996,27 +1019,144 @@ export function createWorld(scene) {
   createCar(0, -25, 0, 0xdfb43b); // Yellow cab traffic car!
   world.cars[world.cars.length - 1].type = "traffic";
 
-  // GRAVES (Cemetery section)
-  function createGrave(x, z, height = 1.2) {
-    const head = new THREE.Mesh(
-      new THREE.BoxGeometry(0.75, height, 0.24),
-      new THREE.MeshStandardMaterial({ color: 0x6f7587, roughness: 1 })
+  // GRAVES (Cemetery section with Cross Detailing)
+  function createGrave(x, z, height = 1.25) {
+    const group = new THREE.Group();
+    
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.2, 0.4),
+      new THREE.MeshStandardMaterial({ color: 0x3d414d, roughness: 1 })
     );
-    head.position.set(x, height / 2, z);
-    scene.add(head);
-    world.graves.push(head);
+    base.position.y = 0.1;
+    group.add(base);
 
+    const head = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.38, 0.38, 0.22, 12, 1, false, 0, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x5a5f6e, roughness: 1 })
+    );
+    head.rotation.z = Math.PI / 2;
+    head.position.set(0, height - 0.2, 0);
+    group.add(head);
+
+    const bodyObj = new THREE.Mesh(
+      new THREE.BoxGeometry(0.76, height - 0.2, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0x5a5f6e, roughness: 1 })
+    );
+    bodyObj.position.set(0, (height - 0.2) / 2, 0);
+    group.add(bodyObj);
+
+    const crossVert = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.42, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x222222 })
+    );
+    crossVert.position.set(0, height * 0.55, 0.125);
+    group.add(crossVert);
+
+    const crossHoriz = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.1, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x222222 })
+    );
+    crossHoriz.position.set(0, height * 0.65, 0.125);
+    group.add(crossHoriz);
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+    world.graves.push(group);
+    
     world.solids.push({
-      minX: x - 0.38,
-      maxX: x + 0.38,
-      minZ: z - 0.12,
-      maxZ: z + 0.12
+      minX: x - 0.48,
+      maxX: x + 0.48,
+      minZ: z - 0.22,
+      maxZ: z + 0.22
     });
   }
 
   for (let i = 0; i < 9; i++) {
-    createGrave(-37 + (i % 3) * 1.6, -33 + Math.floor(i / 3) * 2, 1 + (i % 2) * 0.2);
+    createGrave(-37 + (i % 3) * 1.6, -33 + Math.floor(i / 3) * 2.2, 1.15 + (i % 2) * 0.2);
   }
+
+  // POWER LINE UTILITY POLES
+  const poles = [
+    { x: -5, z: -35 }, { x: -5, z: -15 }, { x: -5, z: 15 }, { x: -5, z: 35 },
+    { x: 35, z: -5 }, { x: 15, z: -5 }, { x: -15, z: -5 }, { x: -35, z: -5 }
+  ];
+
+  const poleGroup = new THREE.Group();
+  poles.forEach(p => {
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.18, 6.2, 8),
+      new THREE.MeshStandardMaterial({ color: 0x3d2719, roughness: 1 })
+    );
+    pole.position.set(p.x, 3.1, p.z);
+    poleGroup.add(pole);
+
+    const crossbar = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.12, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0x3d2719, roughness: 1 })
+    );
+    crossbar.position.set(p.x, 5.8, p.z);
+    crossbar.rotation.y = p.x === -5 ? 0 : Math.PI / 2;
+    poleGroup.add(crossbar);
+
+    world.solids.push({
+      minX: p.x - 0.25,
+      maxX: p.x + 0.25,
+      minZ: p.z - 0.25,
+      maxZ: p.z + 0.25
+    });
+  });
+  scene.add(poleGroup);
+
+  // Draw catenary hanging wires
+  function drawHangingWire(x1, y1, z1, x2, y2, z2) {
+    const points = [];
+    const midX = (x1 + x2) / 2;
+    const midZ = (z1 + z2) / 2;
+    const midY = (y1 + y2) / 2 - 1.2;
+    
+    points.push(new THREE.Vector3(x1, y1, z1));
+    points.push(new THREE.Vector3(midX, midY, midZ));
+    points.push(new THREE.Vector3(x2, y2, z2));
+    
+    const curve = new THREE.CatmullRomCurve3(points);
+    const wireGeom = new THREE.TubeGeometry(curve, 20, 0.018, 5, false);
+    const wireMat = new THREE.MeshBasicMaterial({ color: 0x080808 });
+    const wireMesh = new THREE.Mesh(wireGeom, wireMat);
+    scene.add(wireMesh);
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const p1 = poles[i];
+    const p2 = poles[i+1];
+    drawHangingWire(p1.x, 5.8, p1.z, p2.x, 5.8, p2.z);
+  }
+  for (let i = 4; i < 7; i++) {
+    const p1 = poles[i];
+    const p2 = poles[i+1];
+    drawHangingWire(p1.x, 5.8, p1.z, p2.x, 5.8, p2.z);
+  }
+
+  // RAINWATER STREET PUDDLES
+  const puddleGeom = new THREE.CircleGeometry(1.6, 12);
+  const puddleMat = new THREE.MeshStandardMaterial({
+    color: 0x06060c,
+    roughness: 0.05,
+    metalness: 0.92,
+    transparent: true,
+    opacity: 0.75
+  });
+
+  const puddleCoords = [
+    [-4, 4], [8, -12], [-14, -8], [12, 14], [-22, 22], [28, -20]
+  ];
+
+  puddleCoords.forEach(([px, pz]) => {
+    const puddle = new THREE.Mesh(puddleGeom, puddleMat);
+    puddle.rotation.x = -Math.PI / 2;
+    puddle.position.set(px, 0.03, pz);
+    puddle.scale.set(1.0 + Math.random() * 0.4, 0.6 + Math.random() * 0.3, 1.0);
+    scene.add(puddle);
+  });
 
   // GHOSTS WITH GLOWING RED EYE MESHES
   function createGhost(x, z, phase) {
