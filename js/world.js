@@ -65,6 +65,59 @@ function createBadgeTexture(text, options = {}) {
   });
 }
 
+// Procedural texture for carved Jack-o'-lantern skin
+function createJackOLanternTexture() {
+  return createCanvasTexture(256, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#d76618";
+    ctx.fillRect(0, 0, w, h);
+    
+    ctx.fillStyle = "#ffe045";
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = "#ff7700";
+    
+    // Left eye (triangle)
+    ctx.beginPath();
+    ctx.moveTo(w * 0.28, h * 0.36);
+    ctx.lineTo(w * 0.40, h * 0.36);
+    ctx.lineTo(w * 0.34, h * 0.22);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Right eye (triangle)
+    ctx.beginPath();
+    ctx.moveTo(w * 0.60, h * 0.36);
+    ctx.lineTo(w * 0.72, h * 0.36);
+    ctx.lineTo(w * 0.66, h * 0.22);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Nose (triangle)
+    ctx.beginPath();
+    ctx.moveTo(w * 0.46, h * 0.52);
+    ctx.lineTo(w * 0.54, h * 0.52);
+    ctx.lineTo(w * 0.50, h * 0.44);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Jagged mouth
+    ctx.beginPath();
+    ctx.moveTo(w * 0.22, h * 0.65);
+    ctx.lineTo(w * 0.32, h * 0.78);
+    ctx.lineTo(w * 0.40, h * 0.70);
+    ctx.lineTo(w * 0.50, h * 0.82);
+    ctx.lineTo(w * 0.60, h * 0.70);
+    ctx.lineTo(w * 0.68, h * 0.78);
+    ctx.lineTo(w * 0.78, h * 0.65);
+    ctx.lineTo(w * 0.70, h * 0.69);
+    ctx.lineTo(w * 0.60, h * 0.60);
+    ctx.lineTo(w * 0.50, h * 0.71);
+    ctx.lineTo(w * 0.40, h * 0.60);
+    ctx.lineTo(w * 0.30, h * 0.69);
+    ctx.closePath();
+    ctx.fill();
+  });
+}
+
 export function createWorld(scene) {
   const world = {
     roads: [],
@@ -85,7 +138,10 @@ export function createWorld(scene) {
 
   const worldBounds = 48;
 
-  // Textures
+  // Jack-o'-lantern skin texture shared asset
+  const jackOLanternTex = createJackOLanternTexture();
+
+  // Ground Textures
   const asphaltTexture = createCanvasTexture(512, 512, (ctx, w, h) => {
     ctx.fillStyle = "#11151f";
     ctx.fillRect(0, 0, w, h);
@@ -226,7 +282,100 @@ export function createWorld(scene) {
     [-16, -10], [-12, 15], [0, -22], [16, 11], [22, -12], [-25, 26], [28, 25], [-31, -24]
   ].forEach(([x, z]) => createLamp(x, z));
 
-  // HOUSES & SHOPS
+  // GLOWING PUMPKIN HOUSE (COSTUME BLENDER HOUSE)
+  function createPumpkinHouse(x, z, config) {
+    const group = new THREE.Group();
+    const segmentCount = 10;
+    const orangeMat = new THREE.MeshStandardMaterial({
+      color: 0xd76618,
+      roughness: 0.72,
+      metalness: 0.05,
+      emissive: 0x3d1100,
+      emissiveIntensity: 0.3
+    });
+
+    // Ribbed structural sphereSegments
+    for (let i = 0; i < segmentCount; i++) {
+      const seg = new THREE.Mesh(
+        new THREE.SphereGeometry(3.6, 16, 16),
+        orangeMat
+      );
+      seg.scale.set(1.08, 0.85, 0.78);
+      seg.rotation.y = (i / segmentCount) * Math.PI;
+      group.add(seg);
+    }
+
+    // Stem
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.7, 1.8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x224411, roughness: 1 })
+    );
+    stem.position.y = 2.9;
+    stem.rotation.z = -0.15;
+    group.add(stem);
+
+    // Carved Glowing Eye windows
+    const faceColor = 0xffdf58;
+    const glowMat = new THREE.MeshBasicMaterial({ color: faceColor });
+    for (const side of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.8, 3), glowMat);
+      eye.rotation.x = Math.PI / 2;
+      eye.position.set(side * 1.3, 1.8, 2.85);
+      group.add(eye);
+    }
+
+    // Entrance door vault
+    const doorway = new THREE.Mesh(
+      new THREE.BoxGeometry(1.7, 2.1, 1.2),
+      new THREE.MeshBasicMaterial({ color: 0x11071c })
+    );
+    doorway.position.set(0, 0.9, 3.1);
+    group.add(doorway);
+
+    // Dynamic Shop light
+    const shopLight = new THREE.PointLight(0xff7700, 3.0, 16, 1.5);
+    shopLight.position.set(0, 1.5, 1.5);
+    group.add(shopLight);
+
+    if (config.sign) {
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(5.4, 1.5),
+        new THREE.MeshBasicMaterial({
+          map: createLabelTexture(config.sign, {
+            background: "#120913",
+            accent: config.signAccent,
+            foreground: "#f6ede6",
+            secondary: "#aeb6d0"
+          }),
+          transparent: true
+        })
+      );
+      sign.position.set(0, 4.4, 1.8);
+      group.add(sign);
+      world.signs.push(sign);
+    }
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+
+    world.houses.push({
+      group,
+      x,
+      z,
+      w: 7.2,
+      d: 7.2,
+      enterable: true
+    });
+
+    world.solids.push({
+      minX: x - 3.6,
+      maxX: x + 3.6,
+      minZ: z - 3.6,
+      maxZ: z + 3.6
+    });
+  }
+
+  // STANDARD HOUSES & SHOPS
   function createHouse(config) {
     const group = new THREE.Group();
     const wallMaterial = new THREE.MeshStandardMaterial({ color: config.color, roughness: 0.94 });
@@ -412,7 +561,10 @@ export function createWorld(scene) {
   // Create primary buildings
   createHouse({ x: -18, z: 33, w: 8, h: 4.2, d: 7, color: 0x3b4359, roof: 0x2a0f12, window: 0xffcf7b, sign: "Safehouse", signAccent: "#7cf4da" });
   createHouse({ x: 22, z: 31, w: 8, h: 4.4, d: 7, color: 0x5b2f35, roof: 0x250d13, window: 0xffd69d, sign: "Candy Forge", signAccent: "#ff8f3d" });
-  createHouse({ x: -33, z: -17, w: 7.4, h: 4.1, d: 6.4, color: 0x3d274c, roof: 0x160713, window: 0xff8bc3, sign: "Costume Crypt", signAccent: "#ff4f8a", enterable: true });
+  
+  // Costume Crypt replaced with Glowing Pumpkin House!
+  createPumpkinHouse(-33, -17, { sign: "Costume Crypt", signAccent: "#ff4f8a" });
+  
   createHouse({ x: 33, z: -18, w: 8.4, h: 4.2, d: 6.4, color: 0x26344f, roof: 0x11161f, window: 0x8be8ff, sign: "Hearse Garage", signAccent: "#8be8ff" });
   createHouse({ x: -2, z: -34, w: 7.6, h: 4.3, d: 6.8, color: 0x40352b, roof: 0x1e1010, window: 0xb8ffcf, sign: "Hex Market", signAccent: "#87ffb4" });
   
@@ -457,13 +609,20 @@ export function createWorld(scene) {
     [-29, -25, 1.2], [31, -26, 1.1], [18, -28, 0.95], [-8, -37, 1.2], [2, 38, 1.1]
   ].forEach(([x, z, scale]) => createTree(x, z, scale));
 
-  // PUMPKINS
-  function createPumpkin(x, z, scale = 1) {
+  // JACK-O'-LANTERNS (Carved Glowing Street Pumpkins)
+  function createJackOLantern(x, z, scale = 1) {
     const group = new THREE.Group();
     const body = new THREE.Mesh(
-      new THREE.SphereGeometry(0.56 * scale, 14, 12),
-      new THREE.MeshStandardMaterial({ color: 0xd76618, roughness: 0.82, emissive: 0x4c1807, emissiveIntensity: 0.6 })
+      new THREE.SphereGeometry(0.56 * scale, 16, 16),
+      new THREE.MeshStandardMaterial({
+        map: jackOLanternTex,
+        roughness: 0.82,
+        emissive: 0xff8b07,
+        emissiveMap: jackOLanternTex,
+        emissiveIntensity: 1.3
+      })
     );
+    body.rotation.y = Math.random() * Math.PI * 2; // Random rotation
     body.scale.y = 0.82;
     body.position.y = 0.46 * scale;
     group.add(body);
@@ -491,7 +650,7 @@ export function createWorld(scene) {
   for (let i = 0; i < 28; i++) {
     const angle = (i / 28) * Math.PI * 2;
     const radius = 12 + (i % 7) * 4.6;
-    createPumpkin(Math.cos(angle) * radius, Math.sin(angle * 1.7) * 18, 0.8 + (i % 3) * 0.15);
+    createJackOLantern(Math.cos(angle) * radius, Math.sin(angle * 1.7) * 18, 0.85 + (i % 3) * 0.15);
   }
 
   // CARS WITH GLOWING HEADLIGHT BEAMS
@@ -581,7 +740,7 @@ export function createWorld(scene) {
     createGrave(-37 + (i % 3) * 1.6, -33 + Math.floor(i / 3) * 2, 1 + (i % 2) * 0.2);
   }
 
-  // GHOSTS
+  // GHOSTS WITH GLOWING RED EYE MESHES
   function createGhost(x, z, phase) {
     const group = new THREE.Group();
     const body = new THREE.Mesh(
@@ -610,6 +769,14 @@ export function createWorld(scene) {
     );
     tail.position.y = -0.92;
     group.add(tail);
+
+    // Glowing red eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff1e1e });
+    for (const side of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
+      eye.position.set(side * 0.22, 0.24, 0.56);
+      group.add(eye);
+    }
 
     group.position.set(x, 2.5, z);
     scene.add(group);
@@ -654,6 +821,55 @@ export function createWorld(scene) {
   createKid(10, 20, 0x6d60f2, 1.5);
   createKid(30, 8, 0x50c77d, 2.1);
   createKid(-28, -8, 0xd24db4, 2.9);
+
+  // BLACK CAT ENTITIES
+  function createBlackCat(x, y, z, rotationY) {
+    const cat = new THREE.Group();
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.85 });
+    
+    // Body (sitting capsule)
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.38, 4, 8), blackMat);
+    body.position.y = 0.28;
+    cat.add(body);
+    
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), blackMat);
+    head.position.set(0, 0.52, 0.08);
+    cat.add(head);
+    
+    // Ears
+    for (const side of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 3), blackMat);
+      ear.position.set(side * 0.08, 0.66, 0.08);
+      ear.rotation.z = side * -0.2;
+      cat.add(ear);
+    }
+    
+    // Tail (curved tube/capsule)
+    const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.42, 4, 8), blackMat);
+    tail.position.set(0, 0.2, -0.22);
+    tail.rotation.x = -0.55;
+    cat.add(tail);
+    
+    // Glowing green eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x9eff42 });
+    for (const side of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 6, 6), eyeMat);
+      eye.position.set(side * 0.06, 0.54, 0.22);
+      cat.add(eye);
+    }
+    
+    cat.position.set(x, y, z);
+    cat.rotation.y = rotationY;
+    scene.add(cat);
+  }
+
+  // Scattered sitting black cats
+  createBlackCat(-8, 1.1, 11, 0.5); // On top of the red car
+  createBlackCat(-14, 0.02, 32, -1.2); // Near Safehouse
+  createBlackCat(-5, 0.02, -30, 2.5); // Near Hex Market porch
+  createBlackCat(-33, 0.02, -32, 0.8); // Inside Cemetery
+  createBlackCat(23, 0.02, 2, -0.4); // Near Ritual Beacon center
 
   // ZONES (toruses and light beams)
   function createZone(config) {
@@ -703,7 +919,55 @@ export function createWorld(scene) {
   const wardZone = createZone({ type: "ward", label: "Hex Market", x: -2, z: storefrontZ(-34, 6.8), radius: 2.2, color: 0x87ffb4, cssColor: "#87ffb4" });
   const beaconZone = createZone({ type: "beacon", label: "Ritual Beacon", x: 26, z: 0, radius: 2.6, color: 0xffc25f, cssColor: "#ffbf5f" });
 
-  // CANDIES
+  // PUMPKIN LOOT BUCKETS (REPLACES BOXES FOR CANDIES)
+  function createPumpkinBucket(group) {
+    const orangeMat = new THREE.MeshStandardMaterial({
+      color: 0xff6200,
+      roughness: 0.8,
+      emissive: 0x3d0b00,
+      emissiveIntensity: 0.3
+    });
+    
+    // Pumpkin outer shell
+    const bucketShell = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 12), orangeMat);
+    bucketShell.position.y = 0.34;
+    bucketShell.scale.y = 0.95;
+    group.add(bucketShell);
+    
+    // Rim top cover simulating bucket depth
+    const rim = new THREE.Mesh(
+      new THREE.CircleGeometry(0.24, 12),
+      new THREE.MeshBasicMaterial({ color: 0x180d0d })
+    );
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = 0.71;
+    group.add(rim);
+    
+    // Black bucket handle
+    const handle = new THREE.Mesh(
+      new THREE.TorusGeometry(0.28, 0.03, 6, 18, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 })
+    );
+    handle.position.set(0, 0.65, 0);
+    handle.rotation.z = Math.PI;
+    group.add(handle);
+    
+    // Tiny carved face meshes (two triangles for eyes, mouth)
+    const faceMat = new THREE.MeshBasicMaterial({ color: 0x180d0d });
+    const eyeL = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.1, 3), faceMat);
+    eyeL.rotation.x = Math.PI / 2;
+    eyeL.position.set(-0.11, 0.44, 0.33);
+    group.add(eyeL);
+    
+    const eyeR = eyeL.clone();
+    eyeR.position.x = 0.11;
+    group.add(eyeR);
+    
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.05), faceMat);
+    mouth.position.set(0, 0.34, 0.36);
+    group.add(mouth);
+  }
+
   function createCandy(x, z) {
     const group = new THREE.Group();
     const glowRing = new THREE.Mesh(
@@ -714,68 +978,8 @@ export function createWorld(scene) {
     glowRing.position.y = 0.06;
     group.add(glowRing);
 
-    const cashBundle = new THREE.Mesh(
-      new THREE.BoxGeometry(0.54, 0.42, 0.28),
-      new THREE.MeshStandardMaterial({ color: 0x3f8f4d, emissive: 0x0f2f16, emissiveIntensity: 0.34, roughness: 0.72 })
-    );
-    cashBundle.position.set(-0.22, 0.3, 0);
-    group.add(cashBundle);
-
-    const cashBand = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.44, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0xe8f1d8, roughness: 0.55 })
-    );
-    cashBand.position.set(-0.22, 0.3, 0.01);
-    group.add(cashBand);
-
-    for (const side of [-1, 1]) {
-      const dollarTag = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.24, 0.24),
-        new THREE.MeshBasicMaterial({
-          map: createBadgeTexture("$", {
-            background: "#294326",
-            accent: "#9cff97",
-            foreground: "#f5ffe9"
-          }),
-          transparent: true
-        })
-      );
-      dollarTag.position.set(-0.22, 0.3, side * 0.151);
-      if (side < 0) {
-        dollarTag.rotation.y = Math.PI;
-      }
-      group.add(dollarTag);
-    }
-
-    const snackBag = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.52, 0.14),
-      new THREE.MeshStandardMaterial({ color: 0xff4f8a, emissive: 0x5a112f, emissiveIntensity: 0.34, roughness: 0.42 })
-    );
-    snackBag.position.set(0.28, 0.34, 0);
-    snackBag.rotation.z = -0.05;
-    group.add(snackBag);
-
-    for (const side of [-1, 1]) {
-      const snackLabel = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.24, 0.18),
-        new THREE.MeshBasicMaterial({
-          map: createBadgeTexture("SNK", {
-            width: 180,
-            height: 120,
-            background: "#651138",
-            accent: "#ffd86f",
-            foreground: "#fff4da"
-          }),
-          transparent: true
-        })
-      );
-      snackLabel.position.set(0.28, 0.34, side * 0.081);
-      if (side < 0) {
-        snackLabel.rotation.y = Math.PI;
-      }
-      snackLabel.rotation.z = -0.05;
-      group.add(snackLabel);
-    }
+    // Replaced box shapes with Pumpkin Bucket model!
+    createPumpkinBucket(group);
 
     const sparkle = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.08, 0),
