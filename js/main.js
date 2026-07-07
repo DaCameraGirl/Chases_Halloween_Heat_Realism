@@ -11,6 +11,25 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.32;
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070b13);
+scene.fog = new THREE.FogExp2(0x0b1220, 0.0072);
+
+// Scene Global Lighting Setup
+scene.add(new THREE.AmbientLight(0xa8b9ec, 1.72));
+scene.add(new THREE.HemisphereLight(0x9ab8ff, 0x254028, 1.08));
+
+const moonLight = new THREE.DirectionalLight(0xdbe7ff, 2.35);
+moonLight.position.set(-20, 34, -18);
+scene.add(moonLight);
+
+const warmFill = new THREE.PointLight(0xffb56e, 1.8, 56, 2);
+warmFill.position.set(-18, 8, 18);
+scene.add(warmFill);
+
+const coolStreetFill = new THREE.PointLight(0xa8d8ff, 1.18, 72, 2);
+coolStreetFill.position.set(8, 9, -6);
+scene.add(coolStreetFill);
+
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
 
 const world = createWorld(scene);
