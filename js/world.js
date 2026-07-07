@@ -959,7 +959,24 @@ export function createWorld(scene) {
     group.position.set(x, 0, z);
     group.rotation.y = rotation;
     scene.add(group);
-    world.cars.push(group);
+
+    // Dynamic underglow neon light (defaults to disabled/black)
+    const underglowLight = new THREE.PointLight(0x000000, 0, 4, 1.2);
+    underglowLight.position.set(0, 0.1, 0);
+    group.add(underglowLight);
+
+    const carData = {
+      group,
+      x,
+      z,
+      rotation: rotation,
+      color,
+      speed: 0,
+      angle: rotation,
+      underglow: underglowLight,
+      type: "parked"
+    };
+    world.cars.push(carData);
 
     // Collisions for cars
     world.solids.push({
@@ -974,6 +991,8 @@ export function createWorld(scene) {
   createCar(14, -5, Math.PI, 0x2a5c7c);
   createCar(21, 5, Math.PI / 2, 0x5d5d5d);
   createCar(-24, -2, -Math.PI / 2, 0x463f7b);
+  createCar(0, -25, 0, 0xdfb43b); // Yellow cab traffic car!
+  world.cars[world.cars.length - 1].type = "traffic";
 
   // GRAVES (Cemetery section)
   function createGrave(x, z, height = 1.2) {

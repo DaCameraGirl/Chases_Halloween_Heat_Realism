@@ -100,6 +100,11 @@ const state = {
     sourPumpkin: 0
   },
   eggs: 12,
+  driving: false,
+  activeCar: null,
+  carUpgrades: { underglow: "none", engine: 1, armor: 1, nitro: false },
+  activeWeapon: "bomb",
+  ammo: { gatling: 0, mine: 0 },
   hits: 0,
   costumeIndex: 0,
   story: {
@@ -145,6 +150,7 @@ const lookTarget = new THREE.Vector3();
 const activeBombs = [];
 const activeParticles = [];
 const enemyVelocity = new THREE.Vector3();
+let activeMines = [];
 
 // TARGETING ARROW MESH
 const targetArrow = new THREE.Group();
@@ -464,8 +470,16 @@ function refreshHUD() {
 
   if (hud.cashValue) hud.cashValue.textContent = `$${state.cash}`;
   if (hud.candyValue) hud.candyValue.textContent = `${state.candy} / 6`;
-  if (hud.eggValue) hud.eggValue.textContent = `${state.eggs}`;
-  if (hud.debugKeys) hud.debugKeys.textContent = `F:${input.forward} S:${input.strafe}`;
+  if (hud.eggValue) {
+    if (state.activeWeapon === "bomb") {
+      hud.eggValue.textContent = `${state.eggs} Bombs`;
+    } else if (state.activeWeapon === "gatling") {
+      hud.eggValue.textContent = `${state.ammo.gatling} Rounds`;
+    } else {
+      hud.eggValue.textContent = `${state.ammo.mine} Mines`;
+    }
+  }
+  if (hud.debugKeys) hud.debugKeys.textContent = state.driving ? "Driving" : `F:${input.forward} S:${input.strafe}`;
 
   // Fear & health vignette check
   const distToEnemy = noFace ? chase.group.position.distanceTo(noFace.group.position) : 999;
@@ -493,6 +507,11 @@ function resetGame() {
     sourPumpkin: 0
   };
   state.eggs = 12;
+  state.driving = false;
+  state.activeCar = null;
+  state.activeWeapon = "bomb";
+  state.ammo = { gatling: 0, mine: 0 };
+  state.carUpgrades = { underglow: "none", engine: 1, armor: 1, nitro: false };
   state.hits = 0;
   state.costumeIndex = 0;
   state.story.disguise = false;
@@ -508,11 +527,21 @@ function resetGame() {
 
   chase.group.position.copy(spawn);
   chase.group.rotation.y = Math.PI;
+  chase.group.visible = true;
   applyChaseCostume(chase, 0);
 
   if (noFace) {
     noFace.group.position.set(30, 0, -25);
   }
+
+  // Reset cars
+  world.cars.forEach(car => {
+    car.speed = 0;
+    car.angle = car.rotation;
+    car.group.position.set(car.x, 0, car.z);
+    car.group.rotation.y = car.rotation;
+    car.underglow.intensity = 0;
+  });
 
   // Reset stashes
   world.candies.forEach(candy => {
@@ -523,6 +552,9 @@ function resetGame() {
   // Clear bombs
   activeBombs.forEach(b => scene.remove(b.mesh));
   activeBombs.length = 0;
+
+  activeMines.forEach(m => scene.remove(m.mesh));
+  activeMines.length = 0;
 
   hideOverlay();
   refreshHUD();
@@ -590,6 +622,72 @@ function spawnExplosion(pos) {
   }
 }
 
+function shootGatling() {
+  if (state.ended || state.ammo.gatling <= 0 || state.reviewMode) return;
+  state.ammo.gatling--;
+  refreshHUD();
+
+  // Candy corn projectile: yellow cone
+  const geom = new THREE.ConeGeometry(0.06, 0.22, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.rotation.x = Math.PI / 2;
+
+  const spawnPos = chase.group.position.clone().add(new THREE.Vector3(0, state.driving ? 0.9 : 1.8, 0));
+  mesh.position.copy(spawnPos);
+  scene.add(mesh);
+
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  direction.normalize();
+
+  const speed = 35.0;
+  const velocity = direction.multiplyScalar(speed);
+
+  activeBombs.push({
+    mesh,
+    velocity,
+    position: mesh.position,
+    type: "bullet"
+  });
+
+  playTone(880, 520, 0.08, "triangle", 0.12);
+}
+
+function dropGummyMine() {
+  if (state.ended || state.ammo.mine <= 0 || state.reviewMode) return;
+  state.ammo.mine--;
+  refreshHUD();
+
+  // Pink gummy ring mine
+  const geom = new THREE.TorusGeometry(0.72, 0.08, 6, 20);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff33aa, transparent: true, opacity: 0.9 });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.copy(chase.group.position);
+  mesh.position.y = 0.04;
+  scene.add(mesh);
+
+  activeMines.push({
+    mesh,
+    position: mesh.position,
+    life: 25.0
+  });
+
+  playTone(400, 720, 0.15, "triangle", 0.2);
+  showToast("Dropped Gummy Web Mine!");
+}
+
+function triggerActiveWeapon() {
+  if (state.activeWeapon === "bomb") {
+    throwCandyBomb();
+  } else if (state.activeWeapon === "gatling") {
+    shootGatling();
+  } else if (state.activeWeapon === "mine") {
+    dropGummyMine();
+  }
+}
+
 function triggerCauldronBurst(pos) {
   const count = 48;
   const colors = [0x76ff03, 0xaa00ff, 0xffa500]; // Neon green, warlock purple, witch orange
@@ -648,32 +746,53 @@ function updatePhysics(dt) {
   // Update bombs
   for (let i = activeBombs.length - 1; i >= 0; i--) {
     const bomb = activeBombs[i];
-    bomb.velocity.y -= 12 * dt;
-    bomb.position.addScaledVector(bomb.velocity, dt);
+    
+    if (bomb.type === "bullet") {
+      bomb.position.addScaledVector(bomb.velocity, dt);
+    } else {
+      bomb.velocity.y -= 12 * dt;
+      bomb.position.addScaledVector(bomb.velocity, dt);
+    }
 
-    const hitRadius = state.upgrades.stickyEggs ? 2.6 : 1.8;
+    const hitRadius = bomb.type === "bullet" ? 1.15 : (state.upgrades.stickyEggs ? 2.6 : 1.8);
     const distToNoFace = noFace ? bomb.position.distanceTo(noFace.group.position) : 999;
     
-    if (bomb.position.y <= 0.05 || distToNoFace < hitRadius) {
-      spawnExplosion(bomb.position);
-      scene.remove(bomb.mesh);
-      activeBombs.splice(i, 1);
-
-      if (distToNoFace < hitRadius) {
-        state.hits += 1;
-        state.cash += state.hits % 3 === 0 ? 90 : 20;
-        state.noFaceStunTimer = state.upgrades.ward ? 3.6 : 2.2;
-        enemyVelocity.copy(new THREE.Vector3(
-          noFace.group.position.x - chase.group.position.x,
-          0,
-          noFace.group.position.z - chase.group.position.z
-        ).normalize().multiplyScalar(6.5));
-        
-        soundHit();
-        showToast(state.hits % 3 === 0 ? "Direct hit! Payout Bonus!" : "Stunned No-Face!");
-        setRadio("Good hit. No-Face is staggered.");
+    if (bomb.position.y <= 0.05 || distToNoFace < hitRadius || bomb.position.length() > 140) {
+      if (bomb.type === "bullet") {
+        scene.remove(bomb.mesh);
+        activeBombs.splice(i, 1);
+        if (distToNoFace < hitRadius) {
+          // Pushback No-Face slightly
+          enemyVelocity.copy(new THREE.Vector3(
+            noFace.group.position.x - chase.group.position.x,
+            0,
+            noFace.group.position.z - chase.group.position.z
+          ).normalize().multiplyScalar(2.0));
+          state.noFaceStunTimer = Math.max(state.noFaceStunTimer, 0.4);
+          playTone(440, 220, 0.08, "sine", 0.15);
+          showToast("Gatling Hit!");
+        }
       } else {
-        playTone(320, 100, 0.2, "sine", 0.2);
+        spawnExplosion(bomb.position);
+        scene.remove(bomb.mesh);
+        activeBombs.splice(i, 1);
+
+        if (distToNoFace < hitRadius) {
+          state.hits += 1;
+          state.cash += state.hits % 3 === 0 ? 90 : 20;
+          state.noFaceStunTimer = state.upgrades.ward ? 3.6 : 2.2;
+          enemyVelocity.copy(new THREE.Vector3(
+            noFace.group.position.x - chase.group.position.x,
+            0,
+            noFace.group.position.z - chase.group.position.z
+          ).normalize().multiplyScalar(6.5));
+          
+          soundHit();
+          showToast(state.hits % 3 === 0 ? "Direct hit! Payout Bonus!" : "Stunned No-Face!");
+          setRadio("Good hit. No-Face is staggered.");
+        } else {
+          playTone(320, 100, 0.2, "sine", 0.2);
+        }
       }
       continue;
     }
@@ -698,72 +817,136 @@ function updatePhysics(dt) {
 function applyMovement(dt) {
   if (state.ended) return;
 
-  const basisForward = getLookForwardBasis();
-  const basisRight = getLookRightBasis();
-  move.set(0, 0, 0);
-  move.addScaledVector(basisForward, input.forward);
-  move.addScaledVector(basisRight, input.strafe);
+  if (state.driving && state.activeCar) {
+    const car = state.activeCar;
+    const accelInput = input.forward;
+    const steerInput = input.strafe;
 
-  const moving = move.lengthSq() > 0.0001;
-  if (moving) {
-    move.normalize();
-    const sprinting = input.sprint && state.stamina > 5;
-    const baseSpeed = state.upgrades.sprintBoost ? 6.2 : 4.8;
-    const sprintBonus = state.upgrades.sprintBoost ? 3.2 : 2.0;
-    const speed = sprinting ? baseSpeed + sprintBonus : baseSpeed;
+    if (Math.abs(car.speed) > 0.1) {
+      const steerDir = car.speed > 0 ? 1 : -1;
+      car.angle -= steerInput * dt * 2.2 * steerDir;
+      car.group.rotation.y = car.angle;
+    }
 
-    const moveStep = speed * dt;
-    const targetX = chase.group.position.x + move.x * moveStep;
-    const targetZ = chase.group.position.z + move.z * moveStep;
+    const baseAccel = 11.5;
+    const engineBonus = (state.carUpgrades.engine - 1) * 4.2;
+    const accel = baseAccel + engineBonus;
+    const drag = 2.6;
+
+    let maxSpeed = 11.0 + (state.carUpgrades.engine - 1) * 3.5;
+    if (input.sprint && state.carUpgrades.nitro && state.stamina > 10) {
+      maxSpeed *= 1.48;
+      state.stamina = Math.max(0, state.stamina - dt * 24);
+      if (Math.random() < 0.38) {
+        spawnFootstepParticle(car.group.position, true);
+      }
+    } else {
+      state.stamina = Math.min(100, state.stamina + dt * 10);
+    }
+
+    car.speed += accelInput * accel * dt;
+    car.speed -= Math.sign(car.speed) * drag * dt;
+    car.speed = THREE.MathUtils.clamp(car.speed, -maxSpeed * 0.45, maxSpeed);
+
+    if (Math.abs(car.speed) < 0.05) car.speed = 0;
+
+    const moveStep = car.speed * dt;
+    const targetX = car.group.position.x + Math.sin(car.angle) * moveStep;
+    const targetZ = car.group.position.z + Math.cos(car.angle) * moveStep;
 
     let collideX = false;
     let collideZ = false;
+    const r = 1.35; // Larger collision boundary for drivable cars
 
-    // Radius checks for character boundary
-    const r = 0.55;
     for (const solid of world.solids) {
       if (solid.minX === undefined || solid.minZ === undefined) continue;
-      
-      // X checking
+
       if (targetX + r >= solid.minX && targetX - r <= solid.maxX &&
-          chase.group.position.z + r >= solid.minZ && chase.group.position.z - r <= solid.maxZ) {
+          car.group.position.z + r >= solid.minZ && car.group.position.z - r <= solid.maxZ) {
         collideX = true;
       }
-      // Z checking
-      if (chase.group.position.x + r >= solid.minX && chase.group.position.x - r <= solid.maxX &&
+      if (car.group.position.x + r >= solid.minX && car.group.position.x - r <= solid.maxX &&
           targetZ + r >= solid.minZ && targetZ - r <= solid.maxZ) {
         collideZ = true;
       }
     }
 
     if (!collideX) {
-      chase.group.position.x = THREE.MathUtils.clamp(targetX, -48, 48);
+      car.group.position.x = THREE.MathUtils.clamp(targetX, -48, 48);
+    } else {
+      car.speed *= -0.25;
     }
     if (!collideZ) {
-      chase.group.position.z = THREE.MathUtils.clamp(targetZ, -48, 48);
-    }
-
-    chase.group.rotation.y = Math.atan2(move.x, move.z);
-
-    // Apply movement bounce
-    chase.group.position.y = Math.abs(Math.sin(clock.elapsedTime * (sprinting ? 12 : 8.5))) * 0.12;
-
-    // Spawn footstep autumn leaves
-    if (Math.random() < (sprinting ? 0.45 : 0.22)) {
-      spawnFootstepParticle(chase.group.position, sprinting);
-    }
-
-    if (sprinting) {
-      state.stamina = Math.max(0, state.stamina - dt * 20);
+      car.group.position.z = THREE.MathUtils.clamp(targetZ, -48, 48);
     } else {
-      state.stamina = Math.min(100, state.stamina + dt * (state.upgrades.sprintBoost ? 16 : 12));
+      car.speed *= -0.25;
     }
+
+    // Bind Chase camera focus to car coordinates
+    chase.group.position.copy(car.group.position);
+    chase.group.rotation.y = car.angle + Math.PI;
   } else {
-    chase.group.position.y = 0;
-    if (input.turn !== 0) {
-      chase.group.rotation.y += input.turn * dt * 1.9;
+    const basisForward = getLookForwardBasis();
+    const basisRight = getLookRightBasis();
+    move.set(0, 0, 0);
+    move.addScaledVector(basisForward, input.forward);
+    move.addScaledVector(basisRight, input.strafe);
+
+    const moving = move.lengthSq() > 0.0001;
+    if (moving) {
+      move.normalize();
+      const sprinting = input.sprint && state.stamina > 5;
+      const baseSpeed = state.upgrades.sprintBoost ? 6.2 : 4.8;
+      const sprintBonus = state.upgrades.sprintBoost ? 3.2 : 2.0;
+      const speed = sprinting ? baseSpeed + sprintBonus : baseSpeed;
+
+      const moveStep = speed * dt;
+      const targetX = chase.group.position.x + move.x * moveStep;
+      const targetZ = chase.group.position.z + move.z * moveStep;
+
+      let collideX = false;
+      let collideZ = false;
+
+      const r = 0.55;
+      for (const solid of world.solids) {
+        if (solid.minX === undefined || solid.minZ === undefined) continue;
+        
+        if (targetX + r >= solid.minX && targetX - r <= solid.maxX &&
+            chase.group.position.z + r >= solid.minZ && chase.group.position.z - r <= solid.maxZ) {
+          collideX = true;
+        }
+        if (chase.group.position.x + r >= solid.minX && chase.group.position.x - r <= solid.maxX &&
+            targetZ + r >= solid.minZ && targetZ - r <= solid.maxZ) {
+          collideZ = true;
+        }
+      }
+
+      if (!collideX) {
+        chase.group.position.x = THREE.MathUtils.clamp(targetX, -48, 48);
+      }
+      if (!collideZ) {
+        chase.group.position.z = THREE.MathUtils.clamp(targetZ, -48, 48);
+      }
+
+      chase.group.rotation.y = Math.atan2(move.x, move.z);
+      chase.group.position.y = Math.abs(Math.sin(clock.elapsedTime * (sprinting ? 12 : 8.5))) * 0.12;
+
+      if (Math.random() < (sprinting ? 0.45 : 0.22)) {
+        spawnFootstepParticle(chase.group.position, sprinting);
+      }
+
+      if (sprinting) {
+        state.stamina = Math.max(0, state.stamina - dt * 20);
+      } else {
+        state.stamina = Math.min(100, state.stamina + dt * (state.upgrades.sprintBoost ? 16 : 12));
+      }
+    } else {
+      chase.group.position.y = 0;
+      if (input.turn !== 0) {
+        chase.group.rotation.y += input.turn * dt * 1.9;
+      }
+      state.stamina = Math.min(100, state.stamina + dt * (state.upgrades.sprintBoost ? 18 : 14));
     }
-    state.stamina = Math.min(100, state.stamina + dt * (state.upgrades.sprintBoost ? 18 : 14));
   }
 }
 
@@ -860,7 +1043,7 @@ function updateInteractionPrompt() {
   } else if (zone.type === "costume") {
     text = state.mission === "costume" ? "Press [E] to disguise Chase at Costume Crypt." : "Press [E] to change costume fits.";
   } else if (zone.type === "garage") {
-    text = state.mission === "garage" ? "Press [E] to steal hearse keys." : (state.upgrades.sprintBoost ? "Sprint Boost active." : "Press [E] to buy Sprint Boost for $250.");
+    text = "Press [E] to tune hijacked cars in the Tuner Shop.";
   } else if (zone.type === "ward") {
     text = state.mission === "ward" ? "Press [E] to take ward sigil." : (state.upgrades.ward ? "Ward active. Stuns last longer." : "Press [E] to buy Ward Sigil for $300.");
   } else if (zone.type === "beacon") {
@@ -939,6 +1122,7 @@ function interactWithZone(zone) {
   }
 
   if (zone.type === "garage") {
+    // Steals hearse keys if first mission, then acts as Tuner shop!
     if (state.mission === "garage" && !state.story.keys) {
       state.story.keys = true;
       state.upgrades.sprintBoost = true;
@@ -950,20 +1134,41 @@ function interactWithZone(zone) {
       refreshHUD();
       return;
     }
-    if (state.upgrades.sprintBoost) {
-      showToast("Sprint Boost already installed.");
+
+    if (state.cash < 120) {
+      showToast("Need cash for Tuner Shop upgrades!");
+      soundFail();
       return;
     }
-    if (state.cash < 250) {
-      showToast("Need $250 for Sprint Boost.");
-      return;
+
+    if (!state.carUpgrades.nitro) {
+      state.cash -= 120;
+      state.carUpgrades.nitro = true;
+      showToast("🚗 Tuner Shop: Nitrous Boost installed! (Hold Shift in car)");
+      soundUpgrade();
+    } else if (state.carUpgrades.engine < 3) {
+      if (state.cash < 180) {
+        showToast("Need $180 for Stage Engine tuning!");
+        return;
+      }
+      state.cash -= 180;
+      state.carUpgrades.engine++;
+      showToast(`🚗 Tuner Shop: Engine Stage ${state.carUpgrades.engine} tuned!`);
+      soundUpgrade();
+    } else if (state.carUpgrades.underglow === "none") {
+      state.cash -= 120;
+      state.carUpgrades.underglow = "green";
+      world.cars.forEach(car => {
+        car.underglow.color.setHex(0x55ff00);
+        car.underglow.intensity = 3.8;
+      });
+      showToast("🚗 Tuner Shop: Neon Underglow activated!");
+      soundUpgrade();
+    } else {
+      showToast("All vehicle upgrades fully unlocked!");
+      soundPickup();
     }
-    state.cash -= 250;
-    state.upgrades.sprintBoost = true;
-    state.stamina = 100;
-    showToast("Sprint Boost installed.");
-    setRadio("Hearse Garage tune complete. Chase moves quicker now.");
-    soundUpgrade();
+    refreshHUD();
     return;
   }
 
@@ -1086,6 +1291,19 @@ function triggerLightning() {
   scene.fog.color.set(0x313f57);
   soundThunder();
   setRadio("Pumpkin FM weather alert: lightning strike. Street power grid is unstable!");
+
+  // Slasher Teleport AI
+  if (noFace && !state.ended && Math.random() < 0.62) {
+    const randomTree = world.trees[Math.floor(Math.random() * world.trees.length)];
+    if (randomTree) {
+      noFace.group.position.copy(randomTree.position).add(new THREE.Vector3(
+        (Math.random() - 0.5) * 2.2,
+        0,
+        (Math.random() - 0.5) * 2.2
+      ));
+      showToast("No-Face vanished in the lightning flash!");
+    }
+  }
 
   // Instantly blackout sodium lights
   for (const lamp of world.lamps) {
@@ -1259,6 +1477,89 @@ function tick() {
     state.lightningTimer = 9.0 + Math.random() * 10;
   }
 
+  // Update Gummy Mines
+  for (let i = activeMines.length - 1; i >= 0; i--) {
+    const mine = activeMines[i];
+    mine.life -= dt;
+    
+    const distToNoFace = noFace ? mine.position.distanceTo(noFace.group.position) : 999;
+    if (distToNoFace < 1.35) {
+      state.noFaceStunTimer = 4.0;
+      enemyVelocity.set(0, 0, 0);
+      showToast("🔮 Cauldron Gummy Web trapped No-Face!");
+      soundHit();
+      
+      // Spawn pink splash particles
+      for (let p = 0; p < 18; p++) {
+        const pGeom = new THREE.SphereGeometry(0.08, 6, 6);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xff33aa, transparent: true, opacity: 0.8 });
+        const pMesh = new THREE.Mesh(pGeom, pMat);
+        pMesh.position.copy(mine.position);
+        scene.add(pMesh);
+        activeParticles.push({
+          mesh: pMesh,
+          velocity: new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 3 + 1, (Math.random() - 0.5) * 4),
+          life: 0.6
+        });
+      }
+
+      scene.remove(mine.mesh);
+      activeMines.splice(i, 1);
+      continue;
+    }
+
+    if (mine.life <= 0) {
+      scene.remove(mine.mesh);
+      activeMines.splice(i, 1);
+    }
+  }
+
+  // Move Traffic Cars
+  world.cars.forEach(car => {
+    if (car.type === "traffic") {
+      const speed = 8.5;
+      if (!car.dir) car.dir = "east";
+      
+      if (car.dir === "east") {
+        car.group.position.x += speed * dt;
+        car.group.rotation.y = Math.PI / 2;
+        if (car.group.position.x >= 35) car.dir = "south";
+      } else if (car.dir === "south") {
+        car.group.position.z += speed * dt;
+        car.group.rotation.y = 0;
+        if (car.group.position.z >= 35) car.dir = "west";
+      } else if (car.dir === "west") {
+        car.group.position.x -= speed * dt;
+        car.group.rotation.y = -Math.PI / 2;
+        if (car.group.position.x <= -35) car.dir = "north";
+      } else if (car.dir === "north") {
+        car.group.position.z -= speed * dt;
+        car.group.rotation.y = Math.PI;
+        if (car.group.position.z <= -35) car.dir = "east";
+      }
+    }
+  });
+
+  // Kid Rescue Logic
+  world.kids.forEach(kid => {
+    const distToNoFace = noFace ? kid.group.position.distanceTo(noFace.group.position) : 999;
+    if (distToNoFace < 5.2 && !kid.rescued && !state.ended) {
+      // Kid is in danger! Panics and runs away
+      kid.group.position.x += (kid.group.position.x - noFace.group.position.x) * 1.5 * dt;
+      kid.group.position.z += (kid.group.position.z - noFace.group.position.z) * 1.5 * dt;
+      kid.group.position.y = 0.4 + Math.abs(Math.sin(clock.elapsedTime * 15)) * 0.2;
+      
+      // If player stuns No-Face, the kid gets saved!
+      if (state.noFaceStunTimer > 1.5) {
+        kid.rescued = true;
+        state.cash += 100;
+        showToast("Saved a child from No-Face! +$100 Cash Reward!");
+        soundUpgrade();
+        kid.group.visible = false;
+      }
+    }
+  });
+
   updateCamera(dt);
   refreshHUD();
   renderer.render(scene, camera);
@@ -1297,15 +1598,16 @@ window.addEventListener("keydown", (event) => {
   }
   if (code === "KeyQ" || key === "q") {
     event.preventDefault();
-    input.turn = 1;
+    cycleWeapon();
+  }
+  if (code === "KeyF" || key === "f") {
+    event.preventDefault();
+    toggleVehicleDriving();
   }
   if (code === "KeyE" || key === "e") {
     event.preventDefault();
-    // Only trigger interact if not moving, otherwise rotate
     if (input.forward === 0 && input.strafe === 0) {
       triggerInteraction();
-    } else {
-      input.turn = -1;
     }
   }
   if (code === "ShiftLeft" || code === "ShiftRight" || key === "shift") {
@@ -1316,7 +1618,7 @@ window.addEventListener("keydown", (event) => {
   }
   if (code === "Space" || key === " ") {
     event.preventDefault();
-    throwCandyBomb();
+    triggerActiveWeapon();
   }
   if (code === "KeyF" || key === "f") {
     state.reviewMode = !state.reviewMode;
@@ -1374,8 +1676,12 @@ canvas.addEventListener("pointerdown", (event) => {
   startSpookyMusic();
   
   if (event.button === 0) {
-    input.leftMouseDown = true;
-    input.forward = 1;
+    if (state.activeWeapon !== "bomb") {
+      triggerActiveWeapon();
+    } else {
+      input.leftMouseDown = true;
+      input.forward = 1;
+    }
   } else if (event.button === 2) {
     input.dragging = true;
     input.lastX = event.clientX;
@@ -1640,6 +1946,61 @@ if (btnConfirmBrew) {
 
     refreshHUD();
   });
+}
+
+function toggleVehicleDriving() {
+  if (state.ended || state.reviewMode) return;
+
+  if (state.driving) {
+    const car = state.activeCar;
+    if (!car) return;
+    state.driving = false;
+    state.activeCar = null;
+    
+    chase.group.position.copy(car.group.position).add(new THREE.Vector3(-1.8, 0, 0));
+    chase.group.visible = true;
+    showToast("Exited vehicle.");
+    soundUpgrade();
+    refreshHUD();
+  } else {
+    let nearest = null;
+    let minDist = 3.2;
+    for (const car of world.cars) {
+      if (car.type === "traffic") continue;
+      const d = chase.group.position.distanceTo(car.group.position);
+      if (d < minDist) {
+        minDist = d;
+        nearest = car;
+      }
+    }
+
+    if (nearest) {
+      state.driving = true;
+      state.activeCar = nearest;
+      chase.group.visible = false;
+      showToast("Entered vehicle. W/S to drive, A/D to steer, F to exit.");
+      setRadio("Chase hijacked a parked ride. W/S to drive, A/D to steer.");
+      soundUpgrade();
+      refreshHUD();
+    } else {
+      showToast("No parked car nearby to enter!");
+      soundFail();
+    }
+  }
+}
+
+function cycleWeapon() {
+  const weapons = ["bomb", "gatling", "mine"];
+  const currIndex = weapons.indexOf(state.activeWeapon);
+  state.activeWeapon = weapons[(currIndex + 1) % weapons.length];
+  
+  const friendlyNames = {
+    bomb: "Sticky Candy Bomb",
+    gatling: "Candy Corn Gatling",
+    mine: "Gummy Web Mine"
+  };
+  showToast(`Equipped: ${friendlyNames[state.activeWeapon]}`);
+  soundPickup();
 }
 
 // INITIAL RUN
