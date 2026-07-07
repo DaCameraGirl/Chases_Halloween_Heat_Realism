@@ -230,20 +230,33 @@ export function createWorld(scene) {
     createJackOLanternTexture(3)
   ];
 
-  // Ground Textures
+  // Ground Textures (Grainy & Cracked Asphalt)
   const asphaltTexture = createCanvasTexture(512, 512, (ctx, w, h) => {
-    ctx.fillStyle = "#11151f";
+    ctx.fillStyle = "#16171d";
     ctx.fillRect(0, 0, w, h);
-    for (let i = 0; i < 1700; i++) {
-      const alpha = 0.05 + Math.random() * 0.08;
-      const size = 1 + Math.random() * 3;
-      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+
+    // Fine grain road noise
+    for (let i = 0; i < 4000; i++) {
+      const alpha = 0.04 + Math.random() * 0.06;
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      const size = 1 + Math.random() * 1.5;
       ctx.fillRect(Math.random() * w, Math.random() * h, size, size);
     }
-    ctx.fillStyle = "rgba(18, 20, 27, 0.65)";
-    for (let i = 0; i < 18; i++) {
-      const y = (i / 18) * h;
-      ctx.fillRect(0, y, w, 8);
+
+    // Branching road cracks
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.76)";
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 20; i++) {
+      ctx.beginPath();
+      let startX = Math.random() * w;
+      let startY = Math.random() * h;
+      ctx.moveTo(startX, startY);
+      for (let j = 0; j < 5; j++) {
+        startX += (Math.random() - 0.5) * 48;
+        startY += (Math.random() - 0.5) * 48;
+        ctx.lineTo(startX, startY);
+      }
+      ctx.stroke();
     }
   });
   asphaltTexture.wrapS = THREE.RepeatWrapping;
@@ -294,11 +307,11 @@ export function createWorld(scene) {
   const asphaltMaterial = new THREE.MeshStandardMaterial({
     map: asphaltTexture,
     color: 0xdfe5ff,
-    roughness: 0.86,
-    metalness: 0.1
+    roughness: 0.15, // Wet and shiny specular reflections!
+    metalness: 0.08
   });
 
-  // ROADS
+  // ROADS WITH CONCRETE SIDEWALKS, DOUBLE YELLOW STRIPES, AND WOODEN GUARDRAILS
   function addRoad(x, z, width, depth, rotation = 0) {
     const road = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), asphaltMaterial);
     road.rotation.x = -Math.PI / 2;
@@ -308,18 +321,85 @@ export function createWorld(scene) {
     scene.add(road);
     world.roads.push(road);
 
-    const stripeMaterial = new THREE.MeshBasicMaterial({ color: 0xffc773 });
-    const stripeCount = Math.max(3, Math.floor(depth / 8));
-    for (let i = 0; i < stripeCount; i++) {
-      const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 3), stripeMaterial);
-      stripe.rotation.x = -Math.PI / 2;
-      stripe.rotation.z = rotation;
-      const offset = -depth / 2 + 4 + i * ((depth - 8) / Math.max(1, stripeCount - 1));
-      const local = new THREE.Vector3(0, 0.03, offset);
-      local.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation);
-      stripe.position.set(x + local.x, local.y, z + local.z);
-      scene.add(stripe);
+    // Double Solid Yellow Center lines (exactly like screenshot!)
+    const yellowMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+    const doubleLineGroup = new THREE.Group();
+
+    const lineL = new THREE.Mesh(new THREE.PlaneGeometry(0.08, depth), yellowMat);
+    lineL.position.set(-0.11, 0.025, 0);
+    doubleLineGroup.add(lineL);
+
+    const lineR = new THREE.Mesh(new THREE.PlaneGeometry(0.08, depth), yellowMat);
+    lineR.position.set(0.11, 0.025, 0);
+    doubleLineGroup.add(lineR);
+
+    // White dashed border markings
+    const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const dashCount = Math.max(3, Math.floor(depth / 6));
+    for (let i = 0; i < dashCount; i++) {
+      const offset = -depth / 2 + 3 + i * ((depth - 6) / Math.max(1, dashCount - 1));
+      
+      const dashL = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 1.2), whiteMat);
+      dashL.position.set(-width / 2.25, 0.025, offset);
+      doubleLineGroup.add(dashL);
+
+      const dashR = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 1.2), whiteMat);
+      dashR.position.set(width / 2.25, 0.025, offset);
+      doubleLineGroup.add(dashR);
     }
+
+    doubleLineGroup.position.set(x, 0, z);
+    doubleLineGroup.rotation.y = rotation;
+    scene.add(doubleLineGroup);
+
+    // Raised concrete sidewalks on both sides
+    const concreteMat = new THREE.MeshStandardMaterial({ color: 0x56575d, roughness: 0.9 });
+    const sidewalkGroup = new THREE.Group();
+
+    const walkL = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, depth), concreteMat);
+    walkL.position.set(-width / 2 - 1.1, 0.1, 0);
+    walkL.receiveShadow = true;
+    walkL.castShadow = true;
+
+    const walkR = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, depth), concreteMat);
+    walkR.position.set(width / 2 + 1.1, 0.1, 0);
+    walkR.receiveShadow = true;
+    walkR.castShadow = true;
+
+    sidewalkGroup.add(walkL, walkR);
+    sidewalkGroup.position.set(x, 0, z);
+    sidewalkGroup.rotation.y = rotation;
+    scene.add(sidewalkGroup);
+
+    // Wooden Protective Guardrails (exactly like screenshot!)
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x6e4e3b, roughness: 0.95 });
+    const guardGroup = new THREE.Group();
+
+    // Long wood rail
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, depth), woodMat);
+    rail.position.set(-width / 2 - 0.1, 0.72, 0);
+    rail.castShadow = true;
+    guardGroup.add(rail);
+
+    // Vertical posts spaced every 6 meters
+    for (let p = -depth / 2; p <= depth / 2; p += 6) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8), woodMat);
+      post.position.set(-width / 2 - 0.1, 0.4, p);
+      post.castShadow = true;
+      guardGroup.add(post);
+    }
+
+    guardGroup.position.set(x, 0, z);
+    guardGroup.rotation.y = rotation;
+    scene.add(guardGroup);
+
+    // Solid collisions so player/cars don't fly off-road through barriers
+    world.solids.push({
+      minX: x - width / 2 - 0.25,
+      maxX: x - width / 2 + 0.25,
+      minZ: z - depth / 2,
+      maxZ: z + depth / 2
+    });
   }
 
   addRoad(0, 0, 16, 90, 0);
