@@ -81,16 +81,18 @@
       </dl>
     </section>
 
-    <section class="panel notes">
+    <section class="panel notes" style="pointer-events: auto;">
       <span class="eyebrow">Controls</span>
-      <ul>
-        <li><code>WASD</code> move</li>
-        <li><code>Shift</code> sprint</li>
-        <li><code>E</code> interact with zones</li>
-        <li><code>Click / Space</code> throw candy bomb</li>
-        <li><code>Right drag</code> orbit camera</li>
-        <li><code>R</code> restart game</li>
+      <ul style="margin-bottom: 14px; padding-left: 14px;">
+        <li><strong>Hold Left Click:</strong> Walk in camera direction</li>
+        <li><strong>Right Drag:</strong> Look around (Orbit camera)</li>
+        <li><strong>W/A/S/D:</strong> Keyboard movement (optional)</li>
+        <li><strong>Space:</strong> Throw bomb (optional)</li>
       </ul>
+      <div style="display: flex; gap: 8px;">
+        <button id="btnThrow" style="flex: 1; padding: 12px; background: #ff8b2b; color: #fff; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 4px 10px rgba(255,139,43,0.3);">💣 Bomb</button>
+        <button id="btnInteract" style="flex: 1; padding: 12px; background: #8be8db; color: #111; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 4px 10px rgba(139,232,219,0.3);">🔑 Interact</button>
+      </div>
     </section>
 
     <section class="panel pipeline">

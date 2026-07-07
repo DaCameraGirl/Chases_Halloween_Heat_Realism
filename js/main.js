@@ -41,7 +41,9 @@ const hud = {
   restartBtn: document.getElementById("restartBtn") || document.getElementById("restartWin"),
   vignette: document.getElementById("vignette"),
   flash: document.getElementById("flash"),
-  debugKeys: document.getElementById("debugKeys")
+  debugKeys: document.getElementById("debugKeys"),
+  btnThrow: document.getElementById("btnThrow"),
+  btnInteract: document.getElementById("btnInteract")
 };
 
 if (hud.modelState) {
@@ -79,6 +81,8 @@ const input = {
   turn: 0,
   sprint: false,
   dragging: false,
+  leftMouseDown: false,
+  keyboardWPressed: false,
   yaw: Math.PI,
   pitch: 0.14,
   lastX: 0,
@@ -188,6 +192,22 @@ function updateRain(dt) {
 function setReviewOrbitDefaults() {
   input.yaw = Math.PI;
   input.pitch = 0.14;
+}
+
+// Ensure the forward movement vector matches the camera's actual view vector
+function getLookForwardBasis() {
+  // Compute horizontal direction of camera
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  dir.y = 0;
+  dir.normalize();
+  return dir;
+}
+
+function getLookRightBasis() {
+  const dir = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  dir.y = 0;
+  dir.normalize();
+  return dir;
 }
 
 function currentObjective() {
@@ -353,7 +373,8 @@ function throwCandyBomb() {
   mesh.position.copy(spawnPos);
   scene.add(mesh);
 
-  const forwardDir = new THREE.Vector3(0, 0.45, 1);
+  // Direction matches Chase's actual orientation
+  const forwardDir = new THREE.Vector3(0, 0.38, 1);
   forwardDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), chase.group.rotation.y);
   forwardDir.normalize();
 
@@ -434,8 +455,8 @@ function updatePhysics(dt) {
 function applyMovement(dt) {
   if (state.ended) return;
 
-  const basisForward = new THREE.Vector3(Math.sin(input.yaw), 0, Math.cos(input.yaw)).normalize();
-  const basisRight = new THREE.Vector3(basisForward.z, 0, -basisForward.x).normalize();
+  const basisForward = getLookForwardBasis();
+  const basisRight = getLookRightBasis();
   move.set(0, 0, 0);
   move.addScaledVector(basisForward, input.forward);
   move.addScaledVector(basisRight, input.strafe);
@@ -780,7 +801,10 @@ window.addEventListener("keydown", (event) => {
   ensureAudio();
   
   const key = event.key ? event.key.toLowerCase() : "";
-  if (event.code === "KeyW" || key === "w") input.forward = 1;
+  if (event.code === "KeyW" || key === "w") {
+    input.forward = 1;
+    input.keyboardWPressed = true;
+  }
   if (event.code === "KeyS" || key === "s") input.forward = -1;
   if (event.code === "KeyA" || key === "a") input.strafe = -1;
   if (event.code === "KeyD" || key === "d") input.strafe = 1;
@@ -821,7 +845,12 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("keyup", (event) => {
   const key = event.key ? event.key.toLowerCase() : "";
-  if ((event.code === "KeyW" || key === "w") && input.forward > 0) input.forward = 0;
+  if (event.code === "KeyW" || key === "w") {
+    input.keyboardWPressed = false;
+    if (!input.leftMouseDown) {
+      input.forward = 0;
+    }
+  }
   if ((event.code === "KeyS" || key === "s") && input.forward < 0) input.forward = 0;
   if ((event.code === "KeyA" || key === "a") && input.strafe < 0) input.strafe = 0;
   if ((event.code === "KeyD" || key === "d") && input.strafe > 0) input.strafe = 0;
@@ -833,8 +862,11 @@ window.addEventListener("keyup", (event) => {
 canvas.addEventListener("pointerdown", (event) => {
   ensureAudio();
   if (event.button === 0) {
-    throwCandyBomb();
+    // Hold Left click to walk forward
+    input.leftMouseDown = true;
+    input.forward = 1;
   } else if (event.button === 2) {
+    // Hold Right click to drag/orbit camera
     input.dragging = true;
     input.lastX = event.clientX;
     input.lastY = event.clientY;
@@ -855,8 +887,15 @@ window.addEventListener("pointermove", (event) => {
   );
 });
 
-window.addEventListener("pointerup", () => {
-  input.dragging = false;
+window.addEventListener("pointerup", (event) => {
+  if (event.button === 0) {
+    input.leftMouseDown = false;
+    if (!input.keyboardWPressed) {
+      input.forward = 0;
+    }
+  } else if (event.button === 2) {
+    input.dragging = false;
+  }
 });
 
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
@@ -864,6 +903,21 @@ canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 if (hud.restartBtn) {
   hud.restartBtn.addEventListener("click", () => {
     resetGame();
+  });
+}
+
+// Wire up screen panel buttons for mouse-only actions
+if (hud.btnThrow) {
+  hud.btnThrow.addEventListener("click", (e) => {
+    e.stopPropagation();
+    throwCandyBomb();
+  });
+}
+
+if (hud.btnInteract) {
+  hud.btnInteract.addEventListener("click", (e) => {
+    e.stopPropagation();
+    triggerInteraction();
   });
 }
 
