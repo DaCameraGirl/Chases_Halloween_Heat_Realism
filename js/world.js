@@ -288,6 +288,7 @@ export function createWorld(scene) {
     new THREE.MeshStandardMaterial({ map: grassTexture, color: 0xd1ffd1, roughness: 1, metalness: 0 })
   );
   grass.rotation.x = -Math.PI / 2;
+  grass.receiveShadow = true;
   scene.add(grass);
 
   const asphaltMaterial = new THREE.MeshStandardMaterial({
@@ -303,6 +304,7 @@ export function createWorld(scene) {
     road.rotation.x = -Math.PI / 2;
     road.rotation.z = rotation;
     road.position.set(x, 0.02, z);
+    road.receiveShadow = true;
     scene.add(road);
     world.roads.push(road);
 

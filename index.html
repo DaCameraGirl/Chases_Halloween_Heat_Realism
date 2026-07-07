@@ -26,7 +26,8 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
       }
     }
   </script>
@@ -99,6 +100,11 @@
       <span class="eyebrow">Stalker Alert</span>
       <p id="alertMsg">No-Face is hunting. Stay under the yellow streetlamp posts to keep your fear down, and throw candy bombs to stun him if he stalks you!</p>
     </section>
+  </div>
+
+  <!-- Glassmorphic GPS Minimap -->
+  <div id="gpsMinimap">
+    <canvas id="minimapCanvas" width="160" height="160"></canvas>
   </div>
 
   <div id="flash"></div>

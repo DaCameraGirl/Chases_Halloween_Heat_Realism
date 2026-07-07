@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { createWorld } from "./world.js";
 import { createChaseCharacter, applyChaseCostume, createNoFaceCharacter, costumeStyles } from "./character.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -9,6 +13,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.32;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x070b13);
@@ -20,6 +26,17 @@ scene.add(new THREE.HemisphereLight(0x9ab8ff, 0x254028, 1.08));
 
 const moonLight = new THREE.DirectionalLight(0xdbe7ff, 2.35);
 moonLight.position.set(-20, 34, -18);
+moonLight.castShadow = true;
+moonLight.shadow.mapSize.width = 1024;
+moonLight.shadow.mapSize.height = 1024;
+moonLight.shadow.camera.near = 0.5;
+moonLight.shadow.camera.far = 80;
+const dShadow = 45;
+moonLight.shadow.camera.left = -dShadow;
+moonLight.shadow.camera.right = dShadow;
+moonLight.shadow.camera.top = dShadow;
+moonLight.shadow.camera.bottom = -dShadow;
+moonLight.shadow.bias = -0.0006;
 scene.add(moonLight);
 
 const warmFill = new THREE.PointLight(0xffb56e, 1.8, 56, 2);
@@ -35,6 +52,73 @@ const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerH
 const world = createWorld(scene);
 const chase = await createChaseCharacter(scene);
 const noFace = createNoFaceCharacter(scene);
+
+// Configure shadow casting recursively for all meshes
+scene.traverse(node => {
+  if (node.isMesh) {
+    node.castShadow = true;
+    node.receiveShadow = true;
+  }
+});
+
+// POST PROCESSING EFFECT COMPOSER SETUP
+const renderPass = new RenderPass(scene, camera);
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  1.15,
+  0.42,
+  0.22
+);
+
+const HorrorGlitchShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    amount: { value: 0.0 },
+    time: { value: 0.0 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float amount;
+    uniform float time;
+    varying vec2 vUv;
+    void main() {
+      vec2 uv = vUv;
+      if (amount > 0.05) {
+        uv.x += sin(uv.y * 70.0 + time * 12.0) * 0.015 * amount;
+        uv.y += cos(uv.x * 60.0 + time * 10.0) * 0.012 * amount;
+      }
+      vec4 color = texture2D(tDiffuse, uv);
+      if (amount > 0.05) {
+        vec4 colorR = texture2D(tDiffuse, uv + vec2(0.012 * amount, 0.0));
+        color.r = colorR.r;
+        color.g = color.g * (1.0 - amount * 0.4);
+        color.b = color.b * (1.0 - amount * 0.45);
+      }
+      gl_FragColor = color;
+    }
+  `
+};
+
+const glitchPass = new ShaderPass(HorrorGlitchShader);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(renderPass);
+composer.addPass(bloomPass);
+composer.addPass(glitchPass);
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
 
 // Spawn point
 const spawn = new THREE.Vector3(-18, 0, 18);
@@ -105,6 +189,7 @@ const state = {
   carUpgrades: { underglow: "none", engine: 1, armor: 1, nitro: false },
   activeWeapon: "bomb",
   ammo: { gatling: 0, mine: 0 },
+  screamerTimer: 0,
   hits: 0,
   costumeIndex: 0,
   story: {
@@ -420,6 +505,7 @@ function failMission(reason = "The timer ran out.") {
   if (state.missionFailed) return;
   state.missionFailed = true;
   state.ended = true;
+  state.screamerTimer = 1.6; // High intensity glitch on death!
   soundFail();
   setOverlay(
     "Game Over",
@@ -512,6 +598,7 @@ function resetGame() {
   state.activeWeapon = "bomb";
   state.ammo = { gatling: 0, mine: 0 };
   state.carUpgrades = { underglow: "none", engine: 1, armor: 1, nitro: false };
+  state.screamerTimer = 0;
   state.hits = 0;
   state.costumeIndex = 0;
   state.story.disguise = false;
@@ -1274,6 +1361,7 @@ function updateNoFaceAI(dt) {
     state.health = Math.max(0, state.health - 13);
     const fearGain = state.costumeIndex !== 0 ? 8 : 14;
     state.fear = Math.min(100, state.fear + fearGain);
+    state.screamerTimer = 0.85; // Screamer glitch overlay!
     showToast("No-Face got a swipe in.");
     soundFail();
     refreshHUD();
@@ -1560,9 +1648,86 @@ function tick() {
     }
   });
 
+  // Update Glitch Shader values
+  glitchPass.uniforms.time.value += dt;
+  if (state.screamerTimer > 0) {
+    state.screamerTimer -= dt;
+    glitchPass.uniforms.amount.value = state.screamerTimer * 2.5;
+  } else {
+    glitchPass.uniforms.amount.value = 0.0;
+  }
+
+  // Draw real-time GPS minimap on canvas
+  const minimapCanvas = document.getElementById("minimapCanvas");
+  if (minimapCanvas) {
+    const mCtx = minimapCanvas.getContext("2d");
+    const w = minimapCanvas.width;
+    const h = minimapCanvas.height;
+    
+    // Clear
+    mCtx.fillStyle = "rgba(10, 6, 15, 0.9)";
+    mCtx.fillRect(0, 0, w, h);
+    
+    // Draw base street grid lines
+    mCtx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+    mCtx.lineWidth = 14;
+    mCtx.beginPath();
+    mCtx.moveTo(w / 2, 10);
+    mCtx.lineTo(w / 2, h - 10);
+    mCtx.moveTo(10, h / 2);
+    mCtx.lineTo(w - 10, h / 2);
+    mCtx.stroke();
+
+    // Draw active target zones
+    world.zones.forEach(zone => {
+      const px = w / 2 + (zone.ring.position.x / 95) * (w - 30);
+      const pz = h / 2 + (zone.ring.position.z / 95) * (h - 30);
+      mCtx.fillStyle = zone.cssColor || "#76ff03";
+      mCtx.beginPath();
+      mCtx.arc(px, pz, 5, 0, Math.PI * 2);
+      mCtx.fill();
+    });
+
+    // Draw No-Face location
+    if (noFace && !state.ended) {
+      const nX = w / 2 + (noFace.group.position.x / 95) * (w - 30);
+      const nZ = h / 2 + (noFace.group.position.z / 95) * (h - 30);
+      mCtx.fillStyle = "#ff2a2a";
+      mCtx.beginPath();
+      mCtx.arc(nX, nZ, 4, 0, Math.PI * 2);
+      mCtx.fill();
+      
+      // Pulse ring
+      mCtx.strokeStyle = "rgba(255, 42, 42, 0.32)";
+      mCtx.lineWidth = 2;
+      mCtx.beginPath();
+      mCtx.arc(nX, nZ, 7 + Math.abs(Math.sin(clock.elapsedTime * 4)) * 6, 0, Math.PI * 2);
+      mCtx.stroke();
+    }
+
+    // Draw Chase character
+    const cX = w / 2 + (chase.group.position.x / 95) * (w - 30);
+    const cZ = h / 2 + (chase.group.position.z / 95) * (h - 30);
+    mCtx.fillStyle = "#76ff03";
+    mCtx.beginPath();
+    mCtx.arc(cX, cZ, 5, 0, Math.PI * 2);
+    mCtx.fill();
+
+    // Look direction arrow
+    mCtx.strokeStyle = "#76ff03";
+    mCtx.lineWidth = 2.5;
+    mCtx.beginPath();
+    mCtx.moveTo(cX, cZ);
+    mCtx.lineTo(
+      cX - Math.sin(chase.group.rotation.y) * 9,
+      cZ - Math.cos(chase.group.rotation.y) * 9
+    );
+    mCtx.stroke();
+  }
+
   updateCamera(dt);
   refreshHUD();
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 // EVENT LISTENERS WITH ROBUST EVENT PREVENT PREVENTIONS
