@@ -814,6 +814,8 @@ function updateInteractionPrompt() {
     text = state.mission === "ward" ? "Press [E] to take ward sigil." : (state.upgrades.ward ? "Ward active. Stuns last longer." : "Press [E] to buy Ward Sigil for $300.");
   } else if (zone.type === "beacon") {
     text = state.mission === "beacon" ? "Press [E] to light Ritual Beacon." : "Beacon locked.";
+  } else if (zone.type === "mutation") {
+    text = "Press [E] to throw 1 candy in cauldron and brew mutations.";
   }
 
   if (hud.promptText) hud.promptText.textContent = text;
@@ -951,6 +953,48 @@ function interactWithZone(zone) {
     showToast("Beacon lit. Run home.");
     setRadio("The beacon is hot. Safehouse now. Do not get greedy.");
     soundUpgrade();
+    refreshHUD();
+    return;
+  }
+
+  if (zone.type === "mutation") {
+    if (state.candy < 1) {
+      showToast("Need 1 candy stash collected to brew a mutation!");
+      soundFail();
+      return;
+    }
+    
+    state.candy -= 1;
+    // Brew sound effects (bubble and splash)
+    playTone(220, 780, 0.4, "triangle", 0.4);
+    setTimeout(() => playTone(640, 180, 0.22, "sawtooth", 0.25), 100);
+
+    const roll = Math.floor(Math.random() * 5);
+    if (roll === 0) {
+      applyChaseCostume(chase, 4); // Skeleton Ghost
+      showToast("🔮 Brewed: Skeleton Ghost Costume!");
+      setRadio("Candy mutated! Chase is dressed as a Skeleton Ghost.");
+    } else if (roll === 1) {
+      applyChaseCostume(chase, 5); // Black Cat Shadow
+      showToast("🔮 Brewed: Black Cat Shadow Costume!");
+      setRadio("Candy mutated! Chase is dressed as a glowing Black Cat.");
+    } else if (roll === 2) {
+      state.eggs += 6;
+      state.upgrades.stickyEggs = true;
+      showToast("🔮 Brewed: 6 Fire Candy Bombs!");
+      setRadio("Candy mutated! Obtained double-strength Fire Candy Bombs.");
+    } else if (roll === 3) {
+      state.health = Math.min(100, state.health + 30);
+      state.stamina = 100;
+      state.cash += 100;
+      showToast("🔮 Brewed: Warlock Speed Potion (+$100 Cash, +30 HP)!");
+      setRadio("Candy mutated! Drank speed potion: stamina refueled, health gained.");
+    } else {
+      state.cash += 300;
+      showToast("🔮 Brewed: Golden Witch Hat (+$300 Cash)!");
+      setRadio("Candy mutated! Brewed a pure gold Witch Hat worth $300.");
+    }
+
     refreshHUD();
   }
 }
@@ -1101,6 +1145,27 @@ function updateCamera(dt) {
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.033);
+
+  // Cauldron smoke particle spawning
+  if (world.cauldronPos && Math.random() < 0.28) {
+    const geom = new THREE.SphereGeometry(0.08 + Math.random() * 0.12, 6, 6);
+    const mat = new THREE.MeshBasicMaterial({
+      color: Math.random() > 0.55 ? 0x76ff03 : 0xaa00ff,
+      transparent: true,
+      opacity: 0.62
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.copy(world.cauldronPos);
+    mesh.position.x += (Math.random() - 0.5) * 0.4;
+    mesh.position.z += (Math.random() - 0.5) * 0.4;
+    scene.add(mesh);
+
+    activeParticles.push({
+      mesh,
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.35, 1.1 + Math.random() * 0.6, (Math.random() - 0.5) * 0.35),
+      life: 0.75 + Math.random() * 0.45
+    });
+  }
 
   // Core clocks
   if (state.toastTimer > 0) {

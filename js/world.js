@@ -551,7 +551,7 @@ export function createWorld(scene) {
 
       // Customize Interior Props depending on the shop sign!
       if (config.sign === "Candy Forge") {
-        // Weapons/Bombs Rack: draw glowing bombs on the counter
+        // Weapons/Bombs Rack: draw glowing candy bombs on the counter
         for (let i = -1; i <= 1; i++) {
           const bombProp = new THREE.Mesh(
             new THREE.SphereGeometry(0.15, 8, 8),
@@ -560,6 +560,36 @@ export function createWorld(scene) {
           bombProp.position.set(i * 0.35, 0.35, -config.d * 0.1);
           group.add(bombProp);
         }
+      } else if (config.sign === "Candy Mutation") {
+        // Giant smoking black cauldron witches pot!
+        const cauldron = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.8, 1.0, 1.0, 16),
+          new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.85 })
+        );
+        cauldron.position.set(0, 0.5, -config.d * 0.1);
+        group.add(cauldron);
+
+        const rim = new THREE.Mesh(
+          new THREE.TorusGeometry(0.8, 0.08, 8, 24),
+          new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.85 })
+        );
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(0, 1.0, -config.d * 0.1);
+        group.add(rim);
+
+        const liquid = new THREE.Mesh(
+          new THREE.CircleGeometry(0.76, 16),
+          new THREE.MeshBasicMaterial({ color: 0x39ff14 })
+        );
+        liquid.rotation.x = -Math.PI / 2;
+        liquid.position.set(0, 0.95, -config.d * 0.1);
+        group.add(liquid);
+
+        const potionGlow = new THREE.PointLight(0x55ff00, 3.5, 8, 1.5);
+        potionGlow.position.set(0, 1.2, -config.d * 0.1);
+        group.add(potionGlow);
+
+        world.cauldronPos = new THREE.Vector3(config.x, 0.95, config.z - config.d * 0.1);
       } else if (config.sign === "Hex Market") {
         // Ward shop: draw a glowing green ward sigil
         const sigil = new THREE.Mesh(
@@ -748,7 +778,7 @@ export function createWorld(scene) {
   // Extra decorative houses
   createHouse({ x: 11, z: -32, w: 7.2, h: 4, d: 6.1, color: 0x403240, roof: 0x16090b, window: 0xffcf7b });
   createHouse({ x: -32, z: 11, w: 6.8, h: 3.8, d: 6, color: 0x253344, roof: 0x14070a, window: 0xffdf8a });
-  createHouse({ x: 31, z: 12, w: 6.8, h: 3.8, d: 6, color: 0x50332e, roof: 0x16080b, window: 0xffd697 });
+  createHouse({ x: 31, z: 12, w: 8.2, h: 4.5, d: 7.2, color: 0x22112e, roof: 0x09050d, window: 0xaaff22, sign: "Candy Mutation", signAccent: "#76ff03", enterable: true });
 
   // TREES
   function createTree(x, z, scale = 1) {
@@ -1096,6 +1126,7 @@ export function createWorld(scene) {
   const garageZone = createZone({ type: "garage", label: "Hearse Garage", x: 33, z: -18.5, radius: 2.2, color: 0x8be8ff, cssColor: "#8be8ff" });
   const wardZone = createZone({ type: "ward", label: "Hex Market", x: -2, z: -34.5, radius: 2.2, color: 0x87ffb4, cssColor: "#87ffb4" });
   const beaconZone = createZone({ type: "beacon", label: "Ritual Beacon", x: 26, z: 0, radius: 2.6, color: 0xffc25f, cssColor: "#ffbf5f" });
+  const mutationZone = createZone({ type: "mutation", label: "Mutation Pot", x: 31, z: 11.3, radius: 2.2, color: 0x76ff03, cssColor: "#76ff03" });
 
   // PUMPKIN LOOT BUCKETS (REPLACES BOXES FOR CANDIES)
   function createPumpkinBucket(group) {

@@ -95,7 +95,9 @@ export const costumeStyles = [
   { name: "Default Fit", hoodieColor: 0x20242c, hairColor: 0x473229, maskType: "none" },
   { name: "Pumpkin Phantom", hoodieColor: 0xd76618, hairColor: 0x22120b, maskType: "pumpkin" },
   { name: "Witch Knight", hoodieColor: 0x59328c, hairColor: 0x24152f, maskType: "witch" },
-  { name: "Devil Dash", hoodieColor: 0x8f2736, hairColor: 0x281116, maskType: "devil" }
+  { name: "Devil Dash", hoodieColor: 0x8f2736, hairColor: 0x281116, maskType: "devil" },
+  { name: "Skeleton Ghost", hoodieColor: 0xeaeaea, hairColor: 0x111111, maskType: "witch" },
+  { name: "Black Cat Shadow", hoodieColor: 0x0a0c10, hairColor: 0xaaff22, maskType: "devil" }
 ];
 
 function createFallbackChase() {
