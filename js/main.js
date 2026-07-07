@@ -559,6 +559,32 @@ function spawnExplosion(pos) {
   }
 }
 
+function spawnFootstepParticle(pos, sprinting) {
+  const geom = new THREE.BoxGeometry(0.08, 0.03, 0.08);
+  const color = Math.random() > 0.5 ? 0xcc6633 : 0xaa5522; // Autumn leaves colors
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+  const mesh = new THREE.Mesh(geom, mat);
+  
+  mesh.position.copy(pos);
+  mesh.position.x += (Math.random() - 0.5) * 0.45;
+  mesh.position.z += (Math.random() - 0.5) * 0.45;
+  mesh.position.y = 0.03 + Math.random() * 0.05;
+  
+  scene.add(mesh);
+  
+  const vel = new THREE.Vector3(
+    (Math.random() - 0.5) * 1.5,
+    Math.random() * 2.2 + 0.6,
+    (Math.random() - 0.5) * 1.5
+  );
+  
+  activeParticles.push({
+    mesh,
+    velocity: vel,
+    life: 0.35 + Math.random() * 0.2
+  });
+}
+
 function updatePhysics(dt) {
   // Update bombs
   for (let i = activeBombs.length - 1; i >= 0; i--) {
@@ -662,6 +688,11 @@ function applyMovement(dt) {
 
     // Apply movement bounce
     chase.group.position.y = Math.abs(Math.sin(clock.elapsedTime * (sprinting ? 12 : 8.5))) * 0.12;
+
+    // Spawn footstep autumn leaves
+    if (Math.random() < (sprinting ? 0.45 : 0.22)) {
+      spawnFootstepParticle(chase.group.position, sprinting);
+    }
 
     if (sprinting) {
       state.stamina = Math.max(0, state.stamina - dt * 20);
@@ -973,17 +1004,37 @@ function updateNoFaceAI(dt) {
 
 // RENDER & ENVIRONMENT LOOP
 function triggerLightning() {
-  if (hud.flash) hud.flash.style.background = "rgba(198, 227, 255, 0.45)";
-  scene.background.set(0x354b6b);
-  scene.fog.color.set(0x283b54);
+  if (hud.flash) hud.flash.style.background = "rgba(198, 227, 255, 0.55)";
+  scene.background.set(0x3e4f6d);
+  scene.fog.color.set(0x313f57);
   soundThunder();
-  setRadio("Pumpkin FM weather alert: lightning over Raccoon Heights. Keep moving.");
+  setRadio("Pumpkin FM weather alert: lightning strike. Street power grid is unstable!");
+
+  // Instantly blackout sodium lights
+  for (const lamp of world.lamps) {
+    lamp.light.intensity = 0;
+  }
 
   setTimeout(() => {
     if (hud.flash) hud.flash.style.background = "rgba(198, 227, 255, 0)";
     scene.background.set(0x070b13);
     scene.fog.color.set(0x0b1220);
-  }, 120);
+    
+    // Flickering reboot lamps
+    let count = 0;
+    const interval = setInterval(() => {
+      for (const lamp of world.lamps) {
+        lamp.light.intensity = Math.random() > 0.35 ? 1.85 : 0;
+      }
+      count++;
+      if (count > 6) {
+        clearInterval(interval);
+        for (const lamp of world.lamps) {
+          lamp.light.intensity = 1.85;
+        }
+      }
+    }, 60);
+  }, 140);
 }
 
 function updateTargetArrow() {
@@ -1065,6 +1116,20 @@ function tick() {
     sign.lookAt(camera.position);
   }
 
+  // Animate wind leaves
+  for (const leaf of world.leaves) {
+    leaf.mesh.position.x += leaf.speedX * dt;
+    leaf.mesh.position.y += leaf.speedY * dt;
+    leaf.mesh.rotation.x += leaf.spinSpeed * dt;
+    leaf.mesh.rotation.y += leaf.spinSpeed * 0.5 * dt;
+
+    if (leaf.mesh.position.y < 0.02 || leaf.mesh.position.x < -48) {
+      leaf.mesh.position.x = 48 + (Math.random() - 0.5) * 10;
+      leaf.mesh.position.y = 2.5 + Math.random() * 3;
+      leaf.mesh.position.z = (Math.random() - 0.5) * 90;
+    }
+  }
+
   // Animate ghosts
   for (const ghost of world.ghosts) {
     ghost.group.position.x = ghost.baseX + Math.sin(clock.elapsedTime * 0.7 + ghost.phase) * 1.6;
@@ -1083,7 +1148,10 @@ function tick() {
 
   // Flickering street lights
   for (const lamp of world.lamps) {
-    lamp.light.intensity = 1.85 + Math.sin(clock.elapsedTime * 6 + lamp.phase) * 0.24 + Math.random() * 0.08;
+    // Only flicker randomly if lightning is not actively controlling it
+    if (state.lightningTimer > 0.3) {
+      lamp.light.intensity = 1.85 + Math.sin(clock.elapsedTime * 6 + lamp.phase) * 0.24 + Math.random() * 0.08;
+    }
   }
 
   // Weather lightning loop

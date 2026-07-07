@@ -79,7 +79,8 @@ export function createWorld(scene) {
     ghosts: [],
     candies: [],
     zones: [],
-    signs: []
+    signs: [],
+    leaves: []
   };
 
   const worldBounds = 48;
@@ -493,7 +494,7 @@ export function createWorld(scene) {
     createPumpkin(Math.cos(angle) * radius, Math.sin(angle * 1.7) * 18, 0.8 + (i % 3) * 0.15);
   }
 
-  // CARS
+  // CARS WITH GLOWING HEADLIGHT BEAMS
   function createCar(x, z, rotation, color) {
     const group = new THREE.Group();
     const base = new THREE.Mesh(
@@ -520,6 +521,23 @@ export function createWorld(scene) {
         wheel.position.set(side * 1.02, 0.35, front * 0.72);
         group.add(wheel);
       }
+    }
+
+    // Glowing headlights
+    const lightColor = 0xffebb3;
+    for (const side of [-1, 1]) {
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 8, 8),
+        new THREE.MeshBasicMaterial({ color: lightColor })
+      );
+      bulb.position.set(1.41, 0.6, side * 0.5);
+      group.add(bulb);
+      
+      const headLight = new THREE.SpotLight(lightColor, 2.5, 9, Math.PI / 6, 0.5, 1);
+      headLight.position.set(1.42, 0.6, side * 0.5);
+      headLight.target.position.set(6, 0, side * 0.5);
+      group.add(headLight);
+      group.add(headLight.target);
     }
 
     group.position.set(x, 0, z);
@@ -774,6 +792,24 @@ export function createWorld(scene) {
   [
     [-7, 3], [-12, 8], [8, 8], [16, 17], [24, -6], [-26, -10], [-17, -26], [3, -18], [18, -24], [-29, 22]
   ].forEach(([x, z]) => createCandy(x, z));
+
+  // ATMOSPHERIC WIND LEAVES
+  const leafGeom = new THREE.BoxGeometry(0.18, 0.02, 0.12);
+  const leafMat1 = new THREE.MeshStandardMaterial({ color: 0xaa5511, roughness: 1 });
+  const leafMat2 = new THREE.MeshStandardMaterial({ color: 0xcc7722, roughness: 1 });
+  
+  for (let i = 0; i < 24; i++) {
+    const leaf = new THREE.Mesh(leafGeom, Math.random() > 0.5 ? leafMat1 : leafMat2);
+    leaf.position.set((Math.random() - 0.5) * 90, 0.05 + Math.random() * 4, (Math.random() - 0.5) * 90);
+    leaf.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    scene.add(leaf);
+    world.leaves.push({
+      mesh: leaf,
+      speedX: -2.5 - Math.random() * 2,
+      speedY: -0.5 - Math.random() * 0.5,
+      spinSpeed: 2 + Math.random() * 3
+    });
+  }
 
   return world;
 }
