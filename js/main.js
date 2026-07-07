@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { createWorld, missionRoute } from "./world.js";
-import { createChaseCharacter } from "./character.js";
+import { createChaseCharacter, applyChaseCostume, createNoFaceCharacter, costumeStyles } from "./character.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -15,6 +15,7 @@ const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerH
 
 const world = createWorld(scene);
 const chase = await createChaseCharacter(scene);
+const noFace = createNoFaceCharacter(scene);
 
 const hud = {
   objectiveTitle: document.getElementById("objectiveTitle"),
@@ -28,15 +29,23 @@ const hud = {
   healthBar: document.getElementById("healthBar"),
   fearBar: document.getElementById("fearBar"),
   staminaBar: document.getElementById("staminaBar"),
-  overlay: document.getElementById("missionOverlay"),
+  cashValue: document.getElementById("cashValue"),
+  candyValue: document.getElementById("candyValue"),
+  eggValue: document.getElementById("eggValue"),
+  promptCard: document.getElementById("promptCard"),
+  promptText: document.getElementById("promptText"),
+  overlay: document.getElementById("screenOverlay"),
+  overlayEyebrow: document.getElementById("overlayEyebrow"),
   overlayTitle: document.getElementById("overlayTitle"),
-  overlayText: document.getElementById("overlayText")
+  overlayDesc: document.getElementById("overlayDesc"),
+  restartBtn: document.getElementById("restartBtn"),
+  vignette: document.getElementById("vignette"),
+  flash: document.getElementById("flash")
 };
 
 hud.modelState.textContent = chase.modelLabel ?? (chase.isFallback ? "Starter Rig" : "Custom Model");
 
 const state = {
-  objectiveIndex: 0,
   health: 100,
   fear: 8,
   stamina: 100,
@@ -44,7 +53,21 @@ const state = {
   missionDuration: 90,
   timeLeft: 90,
   missionComplete: false,
-  missionFailed: false
+  missionFailed: false,
+  cash: 0,
+  candy: 0,
+  eggs: 12,
+  costumeIndex: 0,
+  story: {
+    disguise: false,
+    keys: false,
+    ward: false,
+    beacon: false
+  },
+  objectiveIndex: 0,
+  noFaceStunTimer: 0,
+  lightningTimer: 6,
+  hitSoundCooldown: 0
 };
 
 const input = {
@@ -64,6 +87,101 @@ const move = new THREE.Vector3();
 const spawn = new THREE.Vector3(0, 0, 24);
 const lookTarget = new THREE.Vector3();
 
+// Active gameplay object arrays
+const activeBombs = [];
+const activeParticles = [];
+
+// PROCEDURAL AUDIO SYSTEM
+const audio = {
+  ctx: null,
+  gain: null
+};
+
+function ensureAudio() {
+  if (audio.ctx) {
+    if (audio.ctx.state === "suspended") {
+      audio.ctx.resume();
+    }
+    return;
+  }
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  audio.ctx = new AudioContextClass();
+  audio.gain = audio.ctx.createGain();
+  audio.gain.gain.value = 0.28;
+  audio.gain.connect(audio.ctx.destination);
+}
+
+function playTone(freq, freqEnd, duration, type = "sine", vol = 0.3) {
+  ensureAudio();
+  if (!audio.ctx) return;
+  const osc = audio.ctx.createOscillator();
+  const gain = audio.ctx.createGain();
+  const now = audio.ctx.currentTime;
+  
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  if (freqEnd !== freq) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), now + duration);
+  }
+  
+  gain.gain.setValueAtTime(vol, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  
+  osc.connect(gain);
+  gain.connect(audio.gain);
+  
+  osc.start(now);
+  osc.stop(now + duration + 0.02);
+}
+
+function soundPickup() { playTone(520, 1040, 0.15, "triangle", 0.2); }
+function soundHit() { playTone(180, 80, 0.25, "sawtooth", 0.35); }
+function soundUpgrade() {
+  playTone(330, 660, 0.2, "sine", 0.25);
+  setTimeout(() => playTone(495, 990, 0.25, "sine", 0.2), 80);
+}
+function soundFail() { playTone(220, 70, 0.45, "square", 0.3); }
+function soundThunder() { playTone(80, 30, 0.9, "sawtooth", 0.45); }
+
+// WEATHER: RAIN PARTICLES
+const rainCount = 1200;
+const rainGeometry = new THREE.BufferGeometry();
+const rainPositions = new Float32Array(rainCount * 3);
+const rainVelocities = [];
+
+for (let i = 0; i < rainCount; i++) {
+  rainPositions[i * 3] = (Math.random() - 0.5) * 80;
+  rainPositions[i * 3 + 1] = Math.random() * 25 + 2;
+  rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 80;
+  rainVelocities.push(12 + Math.random() * 8);
+}
+rainGeometry.setAttribute("position", new THREE.BufferAttribute(rainPositions, 3));
+
+const rainMaterial = new THREE.PointsMaterial({
+  color: 0x8be8db,
+  size: 0.06,
+  transparent: true,
+  opacity: 0.45,
+  sizeAttenuation: true
+});
+const rain = new THREE.Points(rainGeometry, rainMaterial);
+scene.add(rain);
+
+function updateRain(dt) {
+  const positions = rainGeometry.attributes.position.array;
+  for (let i = 0; i < rainCount; i++) {
+    positions[i * 3 + 1] -= rainVelocities[i] * dt;
+    if (positions[i * 3 + 1] <= 0) {
+      positions[i * 3] = (Math.random() - 0.5) * 80 + chase.group.position.x;
+      positions[i * 3 + 1] = 25;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 80 + chase.group.position.z;
+    }
+  }
+  rainGeometry.attributes.position.needsUpdate = true;
+}
+
+// HUD & GAMEPLAY OVERLAY UTILS
 function setReviewOrbitDefaults() {
   input.yaw = Math.PI;
   input.pitch = 0.14;
@@ -77,9 +195,10 @@ function missionProgress() {
   return Math.min(state.objectiveIndex, missionRoute.length);
 }
 
-function setOverlay(title, text) {
+function setOverlay(eyebrow, title, desc) {
+  hud.overlayEyebrow.textContent = eyebrow;
   hud.overlayTitle.textContent = title;
-  hud.overlayText.textContent = text;
+  hud.overlayDesc.textContent = desc;
   hud.overlay.classList.remove("hidden");
 }
 
@@ -90,18 +209,24 @@ function hideOverlay() {
 function completeMission() {
   if (state.missionComplete) return;
   state.missionComplete = true;
+  state.ended = true;
+  soundUpgrade();
   setOverlay(
-    "Halloween Run Complete",
-    "Chase hit all three checkpoints. Press R to restart the mission and tighten the route."
+    "Mission Complete",
+    "Safehouse Secured!",
+    `Chase made it home alive with $${state.cash} cash, all ${state.candy} loot stashes, and survived No-Face's chase.`
   );
 }
 
-function failMission() {
+function failMission(reason = "The timer ran out.") {
   if (state.missionFailed) return;
   state.missionFailed = true;
+  state.ended = true;
+  soundFail();
   setOverlay(
-    "Night's Over",
-    "The block got away from Chase this round. Press R to reset and beat the timer."
+    "Game Over",
+    "Chase Was Caught",
+    `${reason} Press R to reset Chase and try again.`
   );
 }
 
@@ -109,13 +234,23 @@ function refreshHUD() {
   const objective = currentObjective();
   if (state.missionComplete) {
     hud.objectiveTitle.textContent = "Mission Complete";
-    hud.objectiveHint.textContent = "Chase made all three Halloween stops. Press R to run it again and tighten the route.";
+    hud.objectiveHint.textContent = "Chase made all five Halloween stops. Press R to run the route again.";
   } else if (state.missionFailed) {
     hud.objectiveTitle.textContent = "Retry The Route";
-    hud.objectiveHint.textContent = "The timer ran out. Press R to reset Chase and take the block again.";
+    hud.objectiveHint.textContent = "You failed the block errand. Press R to reset Chase and retake the block.";
   } else if (objective) {
     hud.objectiveTitle.textContent = `Reach ${objective.name}`;
-    hud.objectiveHint.textContent = "Sprint through three Halloween checkpoints before the timer expires, and avoid clipping the street junk on the way.";
+    if (state.objectiveIndex === 0) {
+      hud.objectiveHint.textContent = "Sneak to Costume Crypt and put on your Halloween fit to start the route.";
+    } else if (state.objectiveIndex === 1) {
+      hud.objectiveHint.textContent = "Break into Hearse Garage and hotwire the hearse keys.";
+    } else if (state.objectiveIndex === 2) {
+      hud.objectiveHint.textContent = "Head to Hex Market and extract the ancient ward protection sigil.";
+    } else if (state.objectiveIndex === 3) {
+      hud.objectiveHint.textContent = "Go to the street center and light the Ritual Beacon before No-Face blocks you.";
+    } else {
+      hud.objectiveHint.textContent = "Escape back to the Safehouse! No-Face is fully raged and hunting.";
+    }
   }
 
   hud.markerState.textContent = objective?.name ?? "Route Cleared";
@@ -123,28 +258,165 @@ function refreshHUD() {
   hud.timerState.textContent = `${Math.max(0, Math.ceil(state.timeLeft))}s`;
   hud.progressState.textContent = `${missionProgress()} / ${missionRoute.length}`;
   hud.missionState.textContent = state.missionComplete ? "Won" : state.missionFailed ? "Failed" : "Live";
+  
   hud.healthBar.style.width = `${state.health}%`;
   hud.fearBar.style.width = `${state.fear}%`;
   hud.staminaBar.style.width = `${state.stamina}%`;
+
+  hud.cashValue.textContent = `$${state.cash}`;
+  hud.candyValue.textContent = `${state.candy} / 6`;
+  hud.eggValue.textContent = `${state.eggs}`;
+
+  // Fear & health vignette check
+  const distToEnemy = chase.group.position.distanceTo(noFace.group.position);
+  if (state.health < 35 || state.fear > 70 || (distToEnemy < 7 && !state.ended)) {
+    hud.vignette.className = "danger";
+  } else {
+    hud.vignette.className = "";
+  }
 }
 
-function resetChase() {
-  chase.group.position.copy(spawn);
-  chase.group.rotation.y = Math.PI;
-  state.reviewMode = false;
-  state.objectiveIndex = 0;
+function resetGame() {
+  state.ended = false;
+  state.win = false;
   state.health = 100;
   state.fear = 8;
   state.stamina = 100;
+  state.cash = 0;
+  state.candy = 0;
+  state.eggs = 12;
+  state.costumeIndex = 0;
+  state.story.disguise = false;
+  state.story.keys = false;
+  state.story.ward = false;
+  state.story.beacon = false;
+  state.objectiveIndex = 0;
   state.timeLeft = state.missionDuration;
   state.missionComplete = false;
   state.missionFailed = false;
+  state.noFaceStunTimer = 0;
+
+  chase.group.position.copy(spawn);
+  chase.group.rotation.y = Math.PI;
+  applyChaseCostume(chase, 0);
+
+  // Position No-Face far away
+  noFace.group.position.set(30, 0, -25);
+
+  // Reset stashes
+  world.candies.forEach(candy => {
+    candy.collected = false;
+    candy.group.visible = true;
+  });
+
+  // Clear bombs
+  activeBombs.forEach(b => scene.remove(b.mesh));
+  activeBombs.length = 0;
+
   hideOverlay();
   refreshHUD();
 }
 
+// BOMB THROWING MECHANIC
+function throwCandyBomb() {
+  if (state.ended || state.eggs <= 0 || state.reviewMode) return;
+
+  state.eggs--;
+  refreshHUD();
+
+  const geom = new THREE.SphereGeometry(0.18, 12, 12);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xff8b2b,
+    emissive: 0xff3b00,
+    emissiveIntensity: 3,
+    roughness: 0.2
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+
+  const spawnPos = chase.group.position.clone().add(new THREE.Vector3(0, 1.8, 0));
+  mesh.position.copy(spawnPos);
+  scene.add(mesh);
+
+  const forwardDir = new THREE.Vector3(0, 0.45, 1);
+  forwardDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), chase.group.rotation.y);
+  forwardDir.normalize();
+
+  const velocity = forwardDir.multiplyScalar(13.8);
+
+  activeBombs.push({
+    mesh,
+    velocity,
+    position: mesh.position
+  });
+
+  playTone(660, 240, 0.18, "triangle", 0.2);
+}
+
+function spawnExplosion(pos) {
+  const count = 15;
+  const geom = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffb743, transparent: true, opacity: 0.9 });
+
+  for (let i = 0; i < count; i++) {
+    const mesh = new THREE.Mesh(geom, mat.clone());
+    mesh.position.copy(pos);
+    scene.add(mesh);
+
+    const vel = new THREE.Vector3(
+      (Math.random() - 0.5) * 5,
+      Math.random() * 4 + 1,
+      (Math.random() - 0.5) * 5
+    );
+
+    activeParticles.push({
+      mesh,
+      velocity: vel,
+      life: 0.45
+    });
+  }
+}
+
+function updatePhysics(dt) {
+  // Update bombs
+  for (let i = activeBombs.length - 1; i >= 0; i--) {
+    const bomb = activeBombs[i];
+    bomb.velocity.y -= 9.8 * dt;
+    bomb.position.addScaledVector(bomb.velocity, dt);
+
+    const distToNoFace = bomb.position.distanceTo(noFace.group.position);
+    if (bomb.position.y <= 0.05 || distToNoFace < 1.8) {
+      spawnExplosion(bomb.position);
+      scene.remove(bomb.mesh);
+      activeBombs.splice(i, 1);
+
+      if (distToNoFace < 2.5) {
+        state.noFaceStunTimer = 4.0;
+        playTone(180, 50, 0.35, "sawtooth", 0.4);
+      } else {
+        playTone(320, 100, 0.2, "sine", 0.2);
+      }
+      continue;
+    }
+  }
+
+  // Update particles
+  for (let i = activeParticles.length - 1; i >= 0; i--) {
+    const p = activeParticles[i];
+    p.life -= dt;
+    p.velocity.y -= 9.8 * dt;
+    p.mesh.position.addScaledVector(p.velocity, dt);
+    p.mesh.material.opacity = p.life / 0.45;
+
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      activeParticles.splice(i, 1);
+    }
+  }
+}
+
+// MOVEMENT WITH SLIDING COLLISION
 function applyMovement(dt) {
-  if (state.missionComplete || state.missionFailed) return;
+  if (state.ended) return;
 
   const basisForward = new THREE.Vector3(Math.sin(input.yaw), 0, Math.cos(input.yaw)).normalize();
   const basisRight = new THREE.Vector3(basisForward.z, 0, -basisForward.x).normalize();
@@ -157,43 +429,60 @@ function applyMovement(dt) {
     move.normalize();
     const sprinting = input.sprint && state.stamina > 0;
     const speed = sprinting ? 8.5 : 4.8;
-    chase.group.position.addScaledVector(move, speed * dt);
+
+    const moveStep = speed * dt;
+    const targetX = chase.group.position.x + move.x * moveStep;
+    const targetZ = chase.group.position.z + move.z * moveStep;
+
+    let collideX = false;
+    let collideZ = false;
+
+    for (const solid of world.solids) {
+      if (targetX >= solid.minX && targetX <= solid.maxX &&
+          chase.group.position.z >= solid.minZ && chase.group.position.z <= solid.maxZ) {
+        collideX = true;
+      }
+      if (chase.group.position.x >= solid.minX && chase.group.position.x <= solid.maxX &&
+          targetZ >= solid.minZ && targetZ <= solid.maxZ) {
+        collideZ = true;
+      }
+    }
+
+    if (!collideX) {
+      chase.group.position.x = THREE.MathUtils.clamp(targetX, -40, 40);
+    }
+    if (!collideZ) {
+      chase.group.position.z = THREE.MathUtils.clamp(targetZ, -40, 40);
+    }
+
     chase.group.rotation.y = Math.atan2(move.x, move.z);
+
+    // Apply movement bounce
+    chase.group.position.y = Math.abs(Math.sin(clock.elapsedTime * (sprinting ? 12 : 8.5))) * 0.12;
+
     if (sprinting) {
-      state.stamina = Math.max(0, state.stamina - dt * 16);
-      state.fear = Math.min(100, state.fear + dt * 2.8);
+      state.stamina = Math.max(0, state.stamina - dt * 18);
     } else {
       state.stamina = Math.min(100, state.stamina + dt * 10);
-      state.fear = Math.max(0, state.fear - dt * 1.25);
     }
   } else {
+    chase.group.position.y = 0;
     if (input.turn !== 0) {
       chase.group.rotation.y += input.turn * dt * 1.9;
     }
     state.stamina = Math.min(100, state.stamina + dt * 14);
-    state.fear = Math.max(0, state.fear - dt * 1.6);
-  }
-
-  chase.group.position.x = THREE.MathUtils.clamp(chase.group.position.x, -40, 40);
-  chase.group.position.z = THREE.MathUtils.clamp(chase.group.position.z, -40, 40);
-
-  const objective = currentObjective();
-  if (objective && chase.group.position.distanceTo(objective.position) < 2.8) {
-    state.objectiveIndex += 1;
-    if (state.objectiveIndex >= missionRoute.length) {
-      completeMission();
-    }
   }
 }
 
+// DESTRUCTIVE JUNKS (BLOCKERS) & TIME LOOPS
 function updateMissionTimer(dt) {
-  if (state.reviewMode || state.missionComplete || state.missionFailed) return;
+  if (state.reviewMode || state.ended) return;
   state.timeLeft = Math.max(0, state.timeLeft - dt);
-  if (state.timeLeft <= 0) failMission();
+  if (state.timeLeft <= 0) failMission("The timer expired.");
 }
 
 function updateBlockers(dt) {
-  if (state.reviewMode || state.missionComplete || state.missionFailed) return;
+  if (state.reviewMode || state.ended) return;
 
   for (const blocker of world.blockers) {
     const delta = chase.group.position.clone().sub(blocker.group.position);
@@ -208,38 +497,213 @@ function updateBlockers(dt) {
       state.health = Math.max(0, state.health - dt * 12);
       state.stamina = Math.max(0, state.stamina - dt * 22);
       state.fear = Math.min(100, state.fear + dt * 18);
+      
+      state.hitSoundCooldown -= dt;
+      if (state.hitSoundCooldown <= 0) {
+        soundHit();
+        state.hitSoundCooldown = 0.55;
+      }
+
+      if (state.health <= 0) {
+        failMission("Chase collided too heavily with street blockades.");
+      }
     }
   }
 }
 
-function updateMarkers(dt) {
-  const objective = currentObjective();
-  const reviewHidden = state.reviewMode;
-  world.markers.forEach((marker, index) => {
-    const active = marker === objective;
-    marker.group.visible = !reviewHidden && index >= state.objectiveIndex;
-    if (reviewHidden) {
-      marker.group.position.y = 0;
-      return;
+// ENVIRONMENT LIGHTS & FEAR UPDATES
+function updateEnvironmentAndFear(dt) {
+  if (state.ended || state.reviewMode) return;
+
+  // 1. Check proximity to sodium lamp posts
+  let inLight = false;
+  for (const lampPos of world.lamps) {
+    const d = chase.group.position.distanceTo(lampPos);
+    if (d < 3.8) {
+      inLight = true;
+      break;
     }
-    marker.beam.material.opacity = active ? 0.28 : 0.1;
-    marker.disc.rotation.z += dt * (active ? 1.6 : 0.5);
-    marker.group.position.y = active ? Math.sin(clock.elapsedTime * 2.4) * 0.15 : 0;
-  });
+  }
+
+  // 2. Adjust fear
+  const distToEnemy = chase.group.position.distanceTo(noFace.group.position);
+  if (distToEnemy < 7.5) {
+    state.fear = Math.min(100, state.fear + dt * 15);
+  } else if (inLight) {
+    state.fear = Math.max(0, state.fear - dt * 25);
+  } else {
+    state.fear = Math.min(100, state.fear + dt * 2.8);
+  }
+
+  // 3. Loot stashes check
+  for (const candy of world.candies) {
+    if (candy.collected) continue;
+
+    candy.group.rotation.y += dt * 1.5;
+    candy.group.position.y = 0.4 + Math.sin(clock.elapsedTime * 2.5 + candy.phase) * 0.08;
+
+    const d = chase.group.position.distanceTo(candy.group.position);
+    if (d < 1.4) {
+      candy.collected = true;
+      candy.group.visible = false;
+      state.candy = Math.min(6, state.candy + 1);
+      state.cash += 50;
+      state.eggs = Math.min(24, state.eggs + 3);
+      state.fear = Math.max(0, state.fear - 25);
+      soundPickup();
+      refreshHUD();
+    }
+  }
+}
+
+// PROMPT OVERLAYS & STATE CHECKPOINT ACTIONS
+function updateInteractionPrompt() {
+  if (state.ended || state.reviewMode) {
+    hud.promptCard.classList.remove("show");
+    return;
+  }
+
+  const objective = currentObjective();
+  if (!objective) {
+    hud.promptCard.classList.remove("show");
+    return;
+  }
+
+  const dist = chase.group.position.distanceTo(objective.position);
+  if (dist < 2.8) {
+    let msg = "";
+    if (state.objectiveIndex === 0) msg = "[E] Disguise Chase";
+    else if (state.objectiveIndex === 1) msg = "[E] Hotwire Keys";
+    else if (state.objectiveIndex === 2) msg = "[E] Loot Ward Sigil";
+    else if (state.objectiveIndex === 3) msg = "[E] Light Beacon";
+    else msg = "[E] Enter Safehouse";
+
+    hud.promptText.textContent = msg;
+    hud.promptCard.classList.add("show");
+  } else {
+    hud.promptCard.classList.remove("show");
+  }
+}
+
+function triggerInteraction() {
+  if (state.ended || state.reviewMode) return;
+
+  const objective = currentObjective();
+  if (!objective) return;
+
+  const dist = chase.group.position.distanceTo(objective.position);
+  if (dist > 2.8) return;
+
+  if (state.objectiveIndex === 0) {
+    state.story.disguise = true;
+    state.costumeIndex = 1;
+    applyChaseCostume(chase, 1);
+    soundUpgrade();
+  } else if (state.objectiveIndex === 1) {
+    state.story.keys = true;
+    state.stamina = 100;
+    soundUpgrade();
+  } else if (state.objectiveIndex === 2) {
+    state.story.ward = true;
+    soundUpgrade();
+  } else if (state.objectiveIndex === 3) {
+    state.story.beacon = true;
+    soundUpgrade();
+  } else if (state.objectiveIndex === 4) {
+    // Escaped back to safehouse
+    completeMission();
+    return;
+  }
+
+  // Advance route
+  state.objectiveIndex += 1;
+  if (state.objectiveIndex >= missionRoute.length) {
+    completeMission();
+  } else {
+    // Checkpoint bonus time
+    state.timeLeft = Math.min(120, state.timeLeft + 30);
+  }
+
+  refreshHUD();
+}
+
+// NO-FACE AI LOOP
+function updateNoFaceAI(dt) {
+  if (state.ended || state.reviewMode) return;
+
+  if (state.noFaceStunTimer > 0) {
+    state.noFaceStunTimer -= dt;
+    noFace.group.position.x += (Math.random() - 0.5) * 0.05;
+    noFace.group.position.z += (Math.random() - 0.5) * 0.05;
+    return;
+  }
+
+  const targetDir = new THREE.Vector3().subVectors(chase.group.position, noFace.group.position);
+  targetDir.y = 0;
+  const dist = targetDir.length();
+
+  if (dist > 0.01) {
+    targetDir.normalize();
+    // No-Face speeds up once beacon is activated (Objective 4 -> 5)
+    const stalkSpeed = (state.objectiveIndex >= 4) ? 4.8 : 3.1;
+    noFace.group.position.addScaledVector(targetDir, stalkSpeed * dt);
+    noFace.group.rotation.y = Math.atan2(targetDir.x, targetDir.z);
+    noFace.group.position.y = Math.abs(Math.sin(clock.elapsedTime * 6.5)) * 0.08;
+  }
+
+  if (dist < 1.4) {
+    state.health = Math.max(0, state.health - dt * 38);
+    state.fear = 100;
+
+    state.hitSoundCooldown -= dt;
+    if (state.hitSoundCooldown <= 0) {
+      soundHit();
+      state.hitSoundCooldown = 0.45;
+    }
+
+    if (state.health <= 0) {
+      failMission("No-Face caught up to Chase.");
+    }
+  }
+}
+
+// RENDER & ENVIRONMENT LOOP
+function triggerLightning() {
+  hud.flash.style.background = "rgba(198, 227, 255, 0.45)";
+  scene.background.set(0x354b6b);
+  scene.fog.color.set(0x283b54);
+  soundThunder();
+
+  setTimeout(() => {
+    hud.flash.style.background = "rgba(198, 227, 255, 0)";
+    scene.background.set(0x070b13);
+    scene.fog.color.set(0x0b1220);
+  }, 120);
 }
 
 function updateCamera(dt) {
   const focus = chase.group.position.clone().add(
     state.reviewMode ? new THREE.Vector3(0, 1.98, 0) : new THREE.Vector3(0, 1.8, 0)
   );
+  
   const radius = state.reviewMode ? 4.7 : 11.5;
   const verticalSwing = state.reviewMode ? 1.8 : 1.6;
+
+  // Add panic camera shaking if fear is high
+  const shake = (!state.ended && state.fear > 65) ? (state.fear / 100) * 0.15 : 0;
+  const shakeVec = new THREE.Vector3(
+    (Math.random() - 0.5) * shake,
+    (Math.random() - 0.5) * shake,
+    (Math.random() - 0.5) * shake
+  );
+
   const offset = new THREE.Vector3(
     Math.sin(input.yaw) * radius,
     Math.sin(input.pitch) * verticalSwing,
     Math.cos(input.yaw) * radius
   );
-  const ideal = focus.clone().add(offset);
+
+  const ideal = focus.clone().add(offset).add(shakeVec);
   camera.position.lerp(ideal, 1 - Math.exp(-5.5 * dt));
   lookTarget.copy(focus);
   camera.lookAt(lookTarget);
@@ -248,15 +712,44 @@ function updateCamera(dt) {
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.033);
+
   updateMissionTimer(dt);
   applyMovement(dt);
+  updateNoFaceAI(dt);
   updateBlockers(dt);
-  updateMarkers(dt);
+  updateEnvironmentAndFear(dt);
+  updatePhysics(dt);
+  updateRain(dt);
+  updateInteractionPrompt();
+
+  // Markers spinning animations
+  const currentObj = currentObjective();
+  const reviewHidden = state.reviewMode;
+  world.markers.forEach((marker, index) => {
+    const active = marker === currentObj;
+    marker.group.visible = !reviewHidden && index >= state.objectiveIndex && !state.ended;
+    if (reviewHidden) {
+      marker.group.position.y = 0;
+      return;
+    }
+    marker.beam.material.opacity = active ? 0.28 : 0.1;
+    marker.disc.rotation.z += dt * (active ? 1.6 : 0.5);
+    marker.group.position.y = active ? Math.sin(clock.elapsedTime * 2.4) * 0.15 : 0;
+  });
+
+  // Weather lightning loop
+  state.lightningTimer -= dt;
+  if (state.lightningTimer <= 0) {
+    triggerLightning();
+    state.lightningTimer = 9.0 + Math.random() * 10;
+  }
+
   updateCamera(dt);
   refreshHUD();
   renderer.render(scene, camera);
 }
 
+// EVENT LISTENERS
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -264,6 +757,7 @@ window.addEventListener("resize", () => {
 });
 
 window.addEventListener("keydown", (event) => {
+  ensureAudio();
   if (event.code === "KeyW") input.forward = 1;
   if (event.code === "KeyS") input.forward = -1;
   if (event.code === "KeyA") input.strafe = -1;
@@ -271,7 +765,17 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyQ") input.turn = 1;
   if (event.code === "KeyE") input.turn = -1;
   if (event.code === "ShiftLeft" || event.code === "ShiftRight") input.sprint = true;
-  if (event.code === "KeyR") resetChase();
+  if (event.code === "KeyR") resetGame();
+  
+  if (event.code === "KeyE" && input.forward === 0 && input.strafe === 0) {
+    triggerInteraction();
+  }
+
+  if (event.code === "Space") {
+    event.preventDefault();
+    throwCandyBomb();
+  }
+
   if (event.code === "KeyF") {
     state.reviewMode = !state.reviewMode;
     if (state.reviewMode) {
@@ -279,13 +783,15 @@ window.addEventListener("keydown", (event) => {
       hideOverlay();
     } else if (state.missionComplete) {
       setOverlay(
-        "Halloween Run Complete",
-        "Chase hit all three checkpoints. Press R to restart the mission and tighten the route."
+        "Mission Complete",
+        "Safehouse Secured!",
+        `Chase made it home alive with $${state.cash} cash, all ${state.candy} loot stashes, and survived No-Face's chase.`
       );
     } else if (state.missionFailed) {
       setOverlay(
-        "Night's Over",
-        "The block got away from Chase this round. Press R to reset and beat the timer."
+        "Game Over",
+        "Chase Was Caught",
+        "No-Face cornered Chase in the shadows of Covington block."
       );
     }
   }
@@ -302,10 +808,14 @@ window.addEventListener("keyup", (event) => {
 });
 
 canvas.addEventListener("pointerdown", (event) => {
-  if (event.button !== 0 && event.button !== 2) return;
-  input.dragging = true;
-  input.lastX = event.clientX;
-  input.lastY = event.clientY;
+  ensureAudio();
+  if (event.button === 0) {
+    throwCandyBomb();
+  } else if (event.button === 2) {
+    input.dragging = true;
+    input.lastX = event.clientX;
+    input.lastY = event.clientY;
+  }
 });
 
 window.addEventListener("pointermove", (event) => {
@@ -328,6 +838,11 @@ window.addEventListener("pointerup", () => {
 
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-resetChase();
+hud.restartBtn.addEventListener("click", () => {
+  resetGame();
+});
+
+// INITIAL RUN
+resetGame();
 updateCamera(0.016);
 tick();

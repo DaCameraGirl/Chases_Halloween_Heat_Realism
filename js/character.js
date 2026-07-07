@@ -77,7 +77,6 @@ function normalizeLoadedCharacter(root, config) {
   root.rotation.set(rotationX, rotationY, rotationZ);
   root.scale.setScalar(config.scale ?? 1);
 
-  // Normalize arbitrary Blender export scale to the gameplay rig height.
   box.setFromObject(boundsNode);
   box.getSize(size);
   if (config.targetHeight > 0 && size.y > 0.0001) {
@@ -91,6 +90,13 @@ function normalizeLoadedCharacter(root, config) {
 
   root.position.add(new THREE.Vector3(positionX, positionY, positionZ));
 }
+
+export const costumeStyles = [
+  { name: "Default Fit", hoodieColor: 0x20242c, hairColor: 0x473229, maskType: "none" },
+  { name: "Pumpkin Phantom", hoodieColor: 0xd76618, hairColor: 0x22120b, maskType: "pumpkin" },
+  { name: "Witch Knight", hoodieColor: 0x59328c, hairColor: 0x24152f, maskType: "witch" },
+  { name: "Devil Dash", hoodieColor: 0x8f2736, hairColor: 0x281116, maskType: "devil" }
+];
 
 function createFallbackChase() {
   const group = new THREE.Group();
@@ -295,6 +301,7 @@ function createFallbackChase() {
   hairCap.position.set(0, 2.88, -0.015);
   group.add(hairCap);
 
+  const curlGroup = new THREE.Group();
   for (const [x, y, z, rx, ry, rz, r] of [
     [0, 3.13, 0.03, 1.1, 1, 1, 0.105],
     [-0.13, 3.1, 0.08, 1, 1.08, 1, 0.102],
@@ -314,8 +321,9 @@ function createFallbackChase() {
     const curl = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 14), hairMat);
     curl.scale.set(rx, ry, rz);
     curl.position.set(x, y, z);
-    group.add(curl);
+    curlGroup.add(curl);
   }
+  group.add(curlGroup);
 
   const leftBrow = new THREE.Mesh(
     new THREE.BoxGeometry(0.1, 0.018, 0.028),
@@ -556,7 +564,65 @@ function createFallbackChase() {
   rightHand.position.x = 0.5;
   group.add(rightHand);
 
-  return { group, isFallback: true };
+  // Costume accessory group (Witch Hat, devil horns, pumpkin face mask)
+  const accessoryGroup = new THREE.Group();
+  accessoryGroup.position.y = 2.62;
+  group.add(accessoryGroup);
+
+  // Witch hat
+  const witchHat = new THREE.Group();
+  const brim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.46, 0.46, 0.04, 16),
+    new THREE.MeshStandardMaterial({ color: 0x1a1220, roughness: 0.8 })
+  );
+  brim.position.y = 0.38;
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.26, 0.72, 16),
+    new THREE.MeshStandardMaterial({ color: 0x2d183d, roughness: 0.8 })
+  );
+  cone.position.set(0, 0.74, -0.05);
+  cone.rotation.x = -0.12;
+  witchHat.add(brim, cone);
+  witchHat.name = "witch";
+  witchHat.visible = false;
+  accessoryGroup.add(witchHat);
+
+  // Devil horns
+  const devilHorns = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const horn = new THREE.Mesh(
+      new THREE.ConeGeometry(0.08, 0.28, 8),
+      new THREE.MeshStandardMaterial({ color: 0xcc2936, roughness: 0.5, emissive: 0x660000 })
+    );
+    horn.position.set(side * 0.16, 0.38, 0.1);
+    horn.rotation.z = -side * 0.32;
+    horn.rotation.x = 0.18;
+    devilHorns.add(horn);
+  }
+  devilHorns.name = "devil";
+  devilHorns.visible = false;
+  accessoryGroup.add(devilHorns);
+
+  // Pumpkin mask
+  const pumpkinMask = new THREE.Mesh(
+    new THREE.SphereGeometry(0.24, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xe67319, roughness: 0.7 })
+  );
+  pumpkinMask.scale.set(1.1, 0.95, 0.85);
+  pumpkinMask.position.set(0, -0.1, 0.18);
+  pumpkinMask.name = "pumpkin";
+  pumpkinMask.visible = false;
+  accessoryGroup.add(pumpkinMask);
+
+  return {
+    group,
+    isFallback: true,
+    hoodieMat,
+    hairMat,
+    witchHat,
+    devilHorns,
+    pumpkinMask
+  };
 }
 
 export async function createChaseCharacter(scene) {
@@ -584,4 +650,121 @@ export async function createChaseCharacter(scene) {
       modelLabel: "Starter Rig"
     };
   }
+}
+
+export function applyChaseCostume(chase, index) {
+  if (!chase) return;
+  const style = costumeStyles[index];
+  
+  if (chase.isFallback) {
+    if (chase.hoodieMat) chase.hoodieMat.color.setHex(style.hoodieColor);
+    if (chase.hairMat) chase.hairMat.color.setHex(style.hairColor);
+
+    if (chase.witchHat) chase.witchHat.visible = (style.maskType === "witch");
+    if (chase.devilHorns) chase.devilHorns.visible = (style.maskType === "devil");
+    if (chase.pumpkinMask) chase.pumpkinMask.visible = (style.maskType === "pumpkin");
+  } else {
+    // If it's the real GLB model, traverse the meshes and adjust their colors if their names match
+    chase.group.traverse((child) => {
+      if (child.isMesh) {
+        const nameLower = child.name.toLowerCase();
+        if (nameLower.includes("hoodie") || nameLower.includes("jacket") || nameLower.includes("body") || nameLower.includes("torso")) {
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => {
+                if (m.color) m.color.setHex(style.hoodieColor);
+              });
+            } else if (child.material.color) {
+              child.material.color.setHex(style.hoodieColor);
+            }
+          }
+        }
+        if (nameLower.includes("hair") || nameLower.includes("curl")) {
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => {
+                if (m.color) m.color.setHex(style.hairColor);
+              });
+            } else if (child.material.color) {
+              child.material.color.setHex(style.hairColor);
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+export function createNoFaceCharacter(scene) {
+  const group = new THREE.Group();
+
+  // Outer tall cloak
+  const cloak = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.58, 2.0, 10),
+    new THREE.MeshStandardMaterial({ color: 0x090c12, roughness: 0.98 })
+  );
+  cloak.position.y = 1.0;
+  group.add(cloak);
+
+  // Mask and hood group
+  const headGroup = new THREE.Group();
+  headGroup.position.y = 2.15;
+
+  const hood = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 14, 14),
+    new THREE.MeshStandardMaterial({ color: 0x090c12, roughness: 0.95 })
+  );
+  hood.scale.set(1.05, 1.1, 1.15);
+  headGroup.add(hood);
+
+  // Face mask
+  const mask = new THREE.Mesh(
+    new THREE.SphereGeometry(0.24, 14, 14),
+    new THREE.MeshStandardMaterial({
+      color: 0xe8e8e2,
+      roughness: 0.58,
+      emissive: 0x1f2229,
+      emissiveIntensity: 0.3
+    })
+  );
+  mask.scale.set(0.88, 1.04, 0.68);
+  mask.position.set(0, 0.02, 0.16);
+  headGroup.add(mask);
+
+  // Creepy hollow eyes
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x05070a });
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), eyeMat);
+  leftEye.position.set(-0.075, 0.08, 0.29);
+  leftEye.scale.set(1.2, 0.6, 0.6);
+  headGroup.add(leftEye);
+
+  const rightEye = leftEye.clone();
+  rightEye.position.x = 0.075;
+  headGroup.add(rightEye);
+
+  // Red markings
+  const redMat = new THREE.MeshBasicMaterial({ color: 0x9c1a24 });
+  const topMark = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.065, 0.02), redMat);
+  topMark.position.set(0, 0.16, 0.3);
+  headGroup.add(topMark);
+
+  const bottomMark = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.065, 0.02), redMat);
+  bottomMark.position.set(0, -0.12, 0.3);
+  headGroup.add(bottomMark);
+
+  group.add(headGroup);
+
+  // Shadow disc
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.72, 16),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45 })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  group.add(shadow);
+
+  group.position.set(20, 0, -20);
+  scene.add(group);
+
+  return { group, isFallback: true };
 }

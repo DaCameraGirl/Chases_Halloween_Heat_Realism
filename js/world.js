@@ -3,7 +3,9 @@ import * as THREE from "three";
 export const missionRoute = [
   { name: "Costume Crypt", position: new THREE.Vector3(-16, 0, -10), color: 0xff88db },
   { name: "Hearse Garage", position: new THREE.Vector3(16, 0, -16), color: 0x73b8ff },
-  { name: "Hex Market", position: new THREE.Vector3(22, 0, 12), color: 0x78ffc0 }
+  { name: "Hex Market", position: new THREE.Vector3(22, 0, 12), color: 0x78ffc0 },
+  { name: "Ritual Beacon", position: new THREE.Vector3(0, 0, 18), color: 0xffd56a },
+  { name: "Safehouse", position: new THREE.Vector3(-26, 0, 8), color: 0xf0f3ff }
 ];
 
 function makeWindow(color = 0xfff4d9) {
@@ -24,7 +26,10 @@ export function createWorld(scene) {
 
   const world = {
     blockers: [],
-    markers: []
+    markers: [],
+    lamps: [],
+    solids: [],
+    candies: []
   };
 
   const ground = new THREE.Mesh(
@@ -103,6 +108,7 @@ export function createWorld(scene) {
   coolFill.position.set(14, 8, -8);
   scene.add(coolFill);
 
+  // Streetlamps
   for (const x of [-18, -8, 8, 20]) {
     const lampPost = new THREE.Group();
 
@@ -133,8 +139,19 @@ export function createWorld(scene) {
 
     lampPost.position.set(x, 0, 4);
     scene.add(lampPost);
+
+    world.lamps.push(new THREE.Vector3(x + 0.98, 0, 4));
+
+    // Bounding solid for lamp post
+    world.solids.push({
+      minX: x - 0.35,
+      maxX: x + 0.35,
+      minZ: 4 - 0.35,
+      maxZ: 4 + 0.35
+    });
   }
 
+  // Buildings
   const buildingSpecs = [
     { x: -28, z: -18, w: 18, h: 11, d: 14, color: 0x202838 },
     { x: -28, z: 14, w: 20, h: 12, d: 15, color: 0x1b2231 },
@@ -168,8 +185,17 @@ export function createWorld(scene) {
         scene.add(windowPanel);
       }
     }
+
+    // Bounding solid for buildings
+    world.solids.push({
+      minX: spec.x - spec.w / 2 - 0.4,
+      maxX: spec.x + spec.w / 2 + 0.4,
+      minZ: spec.z - spec.d / 2 - 0.4,
+      maxZ: spec.z + spec.d / 2 + 0.4
+    });
   }
 
+  // Blockers
   const blockerSpecs = [
     { x: -8, z: 8, w: 2.6, h: 1.6, d: 1.2, color: 0xa04f2a },
     { x: 8, z: -6, w: 2.2, h: 1.4, d: 1.2, color: 0xc76c39 },
@@ -203,6 +229,7 @@ export function createWorld(scene) {
     });
   }
 
+  // Markers
   const markerGeometry = new THREE.CylinderGeometry(0.18, 0.18, 8, 8);
   const glowGeometry = new THREE.CylinderGeometry(1.4, 2.8, 11, 24, 1, true);
 
@@ -246,6 +273,47 @@ export function createWorld(scene) {
     scene.add(group);
     world.markers.push({ ...step, group, beam, disc });
   }
+
+  // Loot Stashes (candy bags)
+  const candyPositions = [
+    [-6, 3], [-12, 10], [8, 12], [16, 20], [24, -6], [-26, -10], [-17, -26], [3, -18], [18, -24], [-29, 22]
+  ];
+
+  candyPositions.forEach(([cx, cz]) => {
+    const candyGroup = new THREE.Group();
+    candyGroup.position.set(cx, 0.4, cz);
+
+    const glowDisc = new THREE.Mesh(
+      new THREE.RingGeometry(0.4, 0.6, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffb753, side: THREE.DoubleSide, transparent: true, opacity: 0.48 })
+    );
+    glowDisc.rotation.x = -Math.PI / 2;
+    glowDisc.position.y = -0.38;
+    candyGroup.add(glowDisc);
+
+    const bag = new THREE.Mesh(
+      new THREE.BoxGeometry(0.38, 0.48, 0.28),
+      new THREE.MeshStandardMaterial({ color: 0xd76618, roughness: 0.64, emissive: 0x3f1505 })
+    );
+    bag.position.y = 0.24;
+    candyGroup.add(bag);
+
+    const string = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.06, 0.32),
+      new THREE.MeshBasicMaterial({ color: 0x8be8db })
+    );
+    string.position.y = 0.4;
+    candyGroup.add(string);
+
+    scene.add(candyGroup);
+    world.candies.push({
+      group: candyGroup,
+      x: cx,
+      z: cz,
+      collected: false,
+      phase: Math.random() * Math.PI * 2
+    });
+  });
 
   return world;
 }
