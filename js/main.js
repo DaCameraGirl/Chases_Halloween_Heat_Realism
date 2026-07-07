@@ -40,7 +40,8 @@ const hud = {
   overlayDesc: document.getElementById("overlayDesc") || document.getElementById("overlayText"),
   restartBtn: document.getElementById("restartBtn") || document.getElementById("restartWin"),
   vignette: document.getElementById("vignette"),
-  flash: document.getElementById("flash")
+  flash: document.getElementById("flash"),
+  debugKeys: document.getElementById("debugKeys")
 };
 
 if (hud.modelState) {
@@ -277,6 +278,7 @@ function refreshHUD() {
   if (hud.cashValue) hud.cashValue.textContent = `$${state.cash}`;
   if (hud.candyValue) hud.candyValue.textContent = `${state.candy} / 6`;
   if (hud.eggValue) hud.eggValue.textContent = `${state.eggs}`;
+  if (hud.debugKeys) hud.debugKeys.textContent = `F:${input.forward} S:${input.strafe}`;
 
   // Fear & health vignette check
   const distToEnemy = noFace ? chase.group.position.distanceTo(noFace.group.position) : 999;
@@ -451,14 +453,19 @@ function applyMovement(dt) {
     let collideX = false;
     let collideZ = false;
 
+    // Radius checks for character boundary
+    const r = 0.55;
     for (const solid of world.solids) {
       if (solid.minX === undefined || solid.minZ === undefined) continue;
-      if (targetX >= solid.minX && targetX <= solid.maxX &&
-          chase.group.position.z >= solid.minZ && chase.group.position.z <= solid.maxZ) {
+      
+      // X checking
+      if (targetX + r >= solid.minX && targetX - r <= solid.maxX &&
+          chase.group.position.z + r >= solid.minZ && chase.group.position.z - r <= solid.maxZ) {
         collideX = true;
       }
-      if (chase.group.position.x >= solid.minX && chase.group.position.x <= solid.maxX &&
-          targetZ >= solid.minZ && targetZ <= solid.maxZ) {
+      // Z checking
+      if (chase.group.position.x + r >= solid.minX && chase.group.position.x - r <= solid.maxX &&
+          targetZ + r >= solid.minZ && targetZ - r <= solid.maxZ) {
         collideZ = true;
       }
     }
